@@ -1,0 +1,23 @@
+{
+  "name": "@qingfeng346/ui-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./style.css": "./src/styles/index.css",
+    "./tokens.css": "./src/styles/tokens.css",
+    "./shared.css": "./src/styles/shared.css"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.16"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vue": "^3.5.16",
+    "vue-tsc": "^2.2.10"
+  }
+}
