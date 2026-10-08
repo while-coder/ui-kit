@@ -56,7 +56,6 @@ declare module "vue" {
   SDockWorkspace: typeof components.SDockWorkspace
   SDockTabbar: typeof components.SDockTabbar
   SDockTabDrawer: typeof components.SDockTabDrawer
-  SFlex: typeof components.SFlex
   SForm: typeof components.SForm
   SFormItem: typeof components.SFormItem
   SGrid: typeof components.SGrid

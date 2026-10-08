@@ -2,21 +2,13 @@
 import { computed } from "vue"
 
 defineOptions({ name: "SBadge" })
-//色相走 type（对齐全库 type-* class 约定）；variant 为历史别名。
-//size 规范词表 small/medium（xs/sm 为历史值归一），全库一条规则：xs/sm→small、md→medium
-const props = defineProps<{
+//色相走 type（对齐全库 type-* class 约定）；尺寸词表：small/medium/large 三档（显式默认 medium）
+const props = withDefaults(defineProps<{
   type?: "neutral" | "info" | "warning" | "success" | "error" | "accent" | "tool"
-  /** @deprecated 请用 type（色相放 variant 与全库 type-* 约定冲突） */
-  variant?: "neutral" | "info" | "warning" | "success" | "accent" | "tool"
   size?: string
   pill?: boolean
-}>()
-const normalizedType = computed(() => props.type ?? props.variant ?? "neutral")
-const normalizedSize = computed(() => {
-  const raw = props.size ?? "small"
-  return raw === "xs" || raw === "sm" ? "small" : raw === "md" ? "medium" : raw
-})
-const cls = computed(() => ["s-badge", `type-${normalizedType.value}`, `size-${normalizedSize.value}`, { pill: props.pill }])
+}>(), { size: "medium" })
+const cls = computed(() => ["s-badge", `type-${props.type ?? "neutral"}`, `size-${props.size}`, { pill: props.pill }])
 </script>
 
 <template>
@@ -27,6 +19,7 @@ const cls = computed(() => ["s-badge", `type-${normalizedType.value}`, `size-${n
 .s-badge { display: inline-flex; align-items: center; justify-content: center; font-weight: 600; border-radius: var(--sui-radius-sm); padding: 0 6px; line-height: 1.6; white-space: nowrap; }
 .s-badge.size-small { font-size: 11px; min-width: 18px; }
 .s-badge.size-medium { font-size: 12px; padding: 1px 8px; }
+.s-badge.size-large { font-size: 13px; padding: 2px 10px; }
 .s-badge.pill { border-radius: var(--sui-radius-pill); }
 .s-badge.type-neutral { background: var(--sui-bg-soft); color: var(--sui-fg-muted); }
 .s-badge.type-info { background: var(--sui-info-soft); color: var(--sui-on-info-soft); }

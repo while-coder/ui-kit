@@ -9,11 +9,11 @@ const props = withDefaults(defineProps<{
   options: string[]
   /** 单选还是多选，默认多选 */
   multiple?: boolean
-  /** 尺寸词表规范 small/medium；sm/md 为历史缩写归一（全库一条规则：sm→small、md→medium） */
+  /** 尺寸词表：small/medium/large 三档（显式默认 medium） */
   size?: string
   /** 选中态配色：primary 反色 / default 灰底 */
   variant?: "default" | "primary"
-}>(), { multiple: true, size: "small", variant: "primary" })
+}>(), { multiple: true, size: "medium", variant: "primary" })
 const emit = defineEmits<{
   "update:value": [value: string[]]
   change: [value: string[]]
@@ -21,7 +21,6 @@ const emit = defineEmits<{
 const attrs = useAttrs()
 
 const selected = computed(() => new Set(props.value))
-const normalizedSize = computed(() => props.size === "sm" ? "small" : props.size === "md" ? "medium" : props.size)
 
 const commit = (next: string[]) => { emit("update:value", next); emit("change", next) }
 
@@ -36,7 +35,7 @@ const clearAll = () => commit([])
 
 const chipClass = (tag: string) => [
   "s-tag-filter-chip",
-  `size-${normalizedSize.value}`,
+  `size-${props.size}`,
   `variant-${props.variant}`,
   { selected: selected.value.has(tag) },
 ]
@@ -55,6 +54,7 @@ const chipClass = (tag: string) => [
 .s-tag-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .s-tag-filter-chip { padding: 2px 8px; border: 1px solid var(--sui-border); border-radius: var(--sui-radius-pill); background: var(--sui-bg); color: var(--sui-fg-muted); font: inherit; font-size: 13px; cursor: pointer; transition: background var(--sui-transition), color var(--sui-transition), border-color var(--sui-transition); }
 .s-tag-filter-chip.size-small { padding: 1px 8px; font-size: 12px; }
+.s-tag-filter-chip.size-large { padding: 3px 10px; font-size: 14px; }
 .s-tag-filter-chip:hover { background: var(--sui-bg-hover); border-color: var(--sui-border-strong); color: var(--sui-fg); }
 .s-tag-filter-chip:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 2px; }
 .s-tag-filter-chip.selected.variant-primary, .s-tag-filter-chip.selected.variant-primary:hover { background: var(--sui-primary); border-color: var(--sui-primary); color: var(--sui-on-primary); }

@@ -2,18 +2,19 @@
 import { useAttrs } from "vue"
 
 defineOptions({ name: "SCard", inheritAttrs: false })
+//尺寸词表：small/medium/large 三档（默认 medium；medium 即基础档，无需单独规则）
 const props = withDefaults(defineProps<{
   title?: string
   size?: string
   bordered?: boolean
   closable?: boolean
-}>(), { bordered: true })
+}>(), { bordered: true, size: "medium" })
 const emit = defineEmits<{ close: [] }>()
 const attrs = useAttrs()
 </script>
 
 <template>
-  <section v-bind="attrs" :class="['s-card', `size-${props.size ?? 'medium'}`, { bordered: props.bordered }]">
+  <section v-bind="attrs" :class="['s-card', `size-${props.size}`, { bordered: props.bordered }]">
     <header v-if="props.title || $slots.title || $slots['header-extra'] || props.closable" class="s-card-header">
       <div class="s-card-title"><slot name="title">{{ props.title }}</slot></div>
       <div class="s-card-extra">
@@ -37,5 +38,8 @@ const attrs = useAttrs()
 .s-card-body { padding: 14px; }
 .s-card.size-small .s-card-header { min-height: 36px; padding: 8px 12px; }
 .s-card.size-small .s-card-body { padding: 12px; }
+.s-card.size-large .s-card-header { min-height: 50px; padding: 14px 18px; }
+.s-card.size-large .s-card-title { font-size: 15px; }
+.s-card.size-large .s-card-body { padding: 18px; }
 .s-card-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--sui-border); }
 </style>

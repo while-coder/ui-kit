@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, useAttrs } from "vue"
+import { useAttrs } from "vue"
 
 defineOptions({ name: "STextarea", inheritAttrs: false })
 const props = withDefaults(defineProps<{
   value?: string | number | null
-  /** 尺寸词表规范 small/medium；sm/md 为历史缩写归一（全库一条规则：sm→small、md→medium） */
+  /** 尺寸词表：small/medium/large 三档（默认 medium） */
   size?: string
   placeholder?: string
   disabled?: boolean
@@ -24,13 +24,12 @@ const emit = defineEmits<{
 }>()
 const attrs = useAttrs()
 
-const normalizedSize = computed(() => props.size === "sm" ? "small" : props.size === "md" ? "medium" : props.size)
 const onInput = (event: Event) => emit("update:value", (event.target as HTMLTextAreaElement).value)
 const onChange = (event: Event) => emit("change", (event.target as HTMLTextAreaElement).value)
 </script>
 
 <template>
-  <textarea v-bind="attrs" class="s-input s-textarea" :class="[`size-${normalizedSize}`, { invalid: props.invalid }]"
+  <textarea v-bind="attrs" class="s-input s-textarea" :class="[`size-${props.size}`, { invalid: props.invalid }]"
     :style="{ resize: props.resize }" :value="props.value ?? ''" :placeholder="props.placeholder"
     :disabled="props.disabled" :readonly="props.readonly" :rows="props.rows"
     @input="onInput" @change="onChange" @blur="emit('blur', $event)" @focus="emit('focus', $event)"
@@ -40,5 +39,6 @@ const onChange = (event: Event) => emit("change", (event.target as HTMLTextAreaE
 <style scoped>
 .s-textarea { height: auto; line-height: 1.5; }
 .s-textarea.size-small { min-height: 0; padding: 3px 8px; font-size: 12px; }
+.s-textarea.size-large { padding: 8px 10px; font-size: 14px; }
 .s-textarea.invalid { border-color: var(--sui-danger); }
 </style>

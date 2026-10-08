@@ -2,7 +2,8 @@
 import { useAttrs } from "vue"
 
 defineOptions({ name: "SSwitch", inheritAttrs: false })
-const props = defineProps<{ value?: boolean; label?: string; disabled?: boolean; size?: string }>()
+//尺寸词表：small/medium/large 三档（显式默认 medium；medium 即基础档）
+const props = withDefaults(defineProps<{ value?: boolean; label?: string; disabled?: boolean; size?: string }>(), { size: "medium" })
 const emit = defineEmits<{ "update:value": [value: any]; change: [value: any] }>()
 const attrs = useAttrs()
 
@@ -11,7 +12,7 @@ const toggle = () => { emit("update:value", !props.value); emit("change", !props
 
 <template>
   <button v-bind="attrs" type="button" role="switch" :aria-checked="props.value" :disabled="props.disabled"
-    :class="['s-switch', props.size ? `size-${props.size}` : null, { checked: props.value }]" @click="toggle">
+    :class="['s-switch', `size-${props.size}`, { checked: props.value }]" @click="toggle">
     <span class="s-switch-track" aria-hidden="true"><span class="s-switch-thumb" /></span>
     <span v-if="$slots.checked || $slots.unchecked" class="s-switch-label">
       <slot v-if="props.value" name="checked" /><slot v-else name="unchecked" />
@@ -34,4 +35,8 @@ const toggle = () => { emit("update:value", !props.value); emit("change", !props
 .s-switch.size-small .s-switch-track { width: 32px; height: 18px; }
 .s-switch.size-small .s-switch-thumb { width: 12px; height: 12px; }
 .s-switch.size-small.checked .s-switch-thumb { transform: translateX(14px); }
+.s-switch.size-large { min-height: 32px; }
+.s-switch.size-large .s-switch-track { width: 44px; height: 26px; }
+.s-switch.size-large .s-switch-thumb { width: 20px; height: 20px; }
+.s-switch.size-large.checked .s-switch-thumb { transform: translateX(18px); }
 </style>

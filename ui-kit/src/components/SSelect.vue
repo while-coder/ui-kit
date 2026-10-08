@@ -29,16 +29,12 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   placeholder?: string
   clearable?: boolean
-  /** 尺寸词表规范 small/medium；xs/sm/md 为历史缩写归一（全库一条规则：xs/sm→small、md→medium） */
+  /** 尺寸词表：small/medium/large 三档（显式默认 medium，即 shared.css 的 32px 基础档） */
   size?: string
   invalid?: boolean
-}>(), { options: () => [] })
+}>(), { options: () => [], size: "medium" })
 const emit = defineEmits<{ "update:value": [value: any]; change: [value: any] }>()
 const attrs = useAttrs()
-const normalizedSize = computed(() => {
-  if (!props.size) return null
-  return props.size === "xs" || props.size === "sm" ? "small" : props.size === "md" ? "medium" : props.size
-})
 
 const root = ref<HTMLElement | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
@@ -148,7 +144,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div v-if="multiple" v-bind="attrs" ref="root" class="s-multi-select" :class="{ compact: props.compact, single: props.single, up: props.placement === 'top' }">
-    <button ref="trigger" type="button" class="s-select s-multi-select-trigger" :class="[normalizedSize ? `size-${normalizedSize}` : null, { invalid: props.invalid }]"
+    <button ref="trigger" type="button" class="s-select s-multi-select-trigger" :class="[`size-${props.size}`, { invalid: props.invalid }]"
       :disabled="disabled" aria-haspopup="listbox" :aria-expanded="open" @click="open = !open">
       <span class="s-multi-select-value" :title="props.single ? undefined : selectedLabel">
         <template v-if="props.single">
@@ -173,7 +169,7 @@ onBeforeUnmount(() => {
       </label>
     </div>
   </div>
-  <select v-else v-bind="attrs" class="s-select" :class="[normalizedSize ? `size-${normalizedSize}` : null, { invalid: props.invalid }]" :value="(value as any)"
+  <select v-else v-bind="attrs" class="s-select" :class="[`size-${props.size}`, { invalid: props.invalid }]" :value="(value as any)"
     :disabled="disabled" @change="onNativeChange">
     <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
     <option v-for="option in options" :key="optionValue(option)" :value="optionValue(option)" :disabled="option.disabled">{{ optionLabel(option) }}</option>
@@ -182,9 +178,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .s-select.invalid { border-color: var(--sui-danger); }
-/* size-medium 即 shared.css 的 32px 基础档；size-small 此前只生成类名没有样式，这里补齐 */
+/* size-medium 即 shared.css 的 32px 基础档；size-small/size-large 为变体档 */
 .s-select.size-small { min-height: 26px; padding: 2px 8px; font-size: 12px; }
+.s-select.size-large { min-height: 38px; padding: 6px 10px; font-size: 14px; }
 .s-multi-select-trigger.size-small { min-height: 26px; padding: 3px 6px 3px 8px; font-size: 12px; }
+.s-multi-select-trigger.size-large { min-height: 38px; padding: 5px 8px 5px 10px; font-size: 14px; }
 .s-multi-select { position: relative; width: 100%; min-width: 0; }
 .s-multi-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; }
 .s-multi-select.compact .s-multi-select-trigger { min-height: 26px; padding: 3px 6px 3px 8px; }

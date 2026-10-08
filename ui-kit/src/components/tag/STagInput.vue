@@ -7,7 +7,7 @@ const props = withDefaults(defineProps<{
   /** 已添加的标签 */
   value: string[]
   placeholder?: string
-  /** 尺寸词表规范 small/medium；sm/md 为历史缩写归一（全库一条规则：sm→small、md→medium） */
+  /** 尺寸词表：small/medium/large 三档（默认 medium） */
   size?: string
   disabled?: boolean
   /** 最多标签数，达到后禁止继续输入 */
@@ -39,7 +39,7 @@ const composing = ref(false)
 
 const cls = computed(() => [
   "s-tag-input",
-  `size-${props.size === "sm" ? "small" : props.size === "md" ? "medium" : props.size}`,
+  `size-${props.size}`,
   { focused: focused.value, disabled: props.disabled },
 ])
 
@@ -164,6 +164,7 @@ defineExpose({ focus: focusInput })
 <style scoped>
 .s-tag-input { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; min-height: 32px; padding: 4px 8px; border: 1px solid var(--sui-border-strong); border-radius: var(--sui-radius-md); background: var(--sui-bg); color: var(--sui-fg); font-size: 13px; cursor: text; box-sizing: border-box; transition: border-color var(--sui-transition); }
 .s-tag-input.size-small { gap: 4px; min-height: 26px; padding: 2px 8px; font-size: 12px; }
+.s-tag-input.size-large { min-height: 40px; padding: 6px 10px; font-size: 14px; }
 .s-tag-input.focused { border-color: var(--sui-primary); }
 .s-tag-input.disabled { background: var(--sui-bg-subtle); color: var(--sui-fg-disabled); cursor: not-allowed; }
 .s-tag-input-field { flex: 1; min-width: 80px; padding: 2px 0; border: 0; outline: none; background: transparent; color: inherit; font: inherit; font-size: inherit; }

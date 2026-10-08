@@ -1,19 +1,15 @@
 <script setup lang="ts">
-import { computed, useAttrs } from "vue"
+import { useAttrs } from "vue"
 
 defineOptions({ name: "STable", inheritAttrs: false })
-//尺寸词表规范 small/medium；xs/sm/md 为历史缩写归一（全库一条规则：xs/sm→small、md→medium）
-const props = defineProps<{ bordered?: boolean; size?: string }>()
+//尺寸词表：small/medium/large 三档（显式默认 medium；medium 即 shared.css 基础档）
+const props = withDefaults(defineProps<{ bordered?: boolean; size?: string }>(), { size: "medium" })
 const attrs = useAttrs()
-const normalizedSize = computed(() => {
-  const raw = props.size ?? "medium"
-  return raw === "xs" || raw === "sm" ? "small" : raw === "md" ? "medium" : raw
-})
 </script>
 
 <template>
   <div class="s-table-wrap">
-    <table v-bind="attrs" :class="['s-table', `size-${normalizedSize}`, { bordered }]">
+    <table v-bind="attrs" :class="['s-table', `size-${props.size}`, { bordered }]">
       <slot />
     </table>
   </div>
@@ -24,4 +20,6 @@ const normalizedSize = computed(() => {
 .s-table-wrap { width: 100%; overflow: auto; }
 .s-table.size-small { font-size: 12px; }
 .s-table.size-small :deep(th), .s-table.size-small :deep(td) { padding: 5px 8px; }
+.s-table.size-large { font-size: 14px; }
+.s-table.size-large :deep(th), .s-table.size-large :deep(td) { padding: 9px 12px; }
 </style>

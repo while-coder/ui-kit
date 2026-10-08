@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, useAttrs } from "vue"
+import { useAttrs } from "vue"
 
 defineOptions({ name: "SButton", inheritAttrs: false })
+//色相走 type（default/primary/error…），尺寸词表唯一：small/medium/large（默认 medium；medium 即基础档，无需单独样式规则）
 const props = withDefaults(defineProps<{
   type?: string
   size?: string
@@ -12,16 +13,11 @@ const props = withDefaults(defineProps<{
   block?: boolean
 }>(), { type: "default", size: "medium" })
 const attrs = useAttrs()
-
-//type 兼容别名：outline→default（wm 默认即描边款）；size 兼容 sm/md 缩写
-const normalizedType = computed(() => props.type === "outline" ? "default" : props.type)
-const normalizedSize = computed(() => props.size === "sm" ? "small" : props.size === "md" ? "medium" : props.size)
-const isText = computed(() => props.text || props.type === "text")
 </script>
 
 <template>
   <button v-bind="attrs" :type="(attrs as any).type ?? 'button'" :disabled="props.disabled || props.loading"
-    :class="['s-button', `type-${normalizedType}`, `size-${normalizedSize}`, { text: isText, tertiary: props.tertiary, block: props.block, loading: props.loading }]">
+    :class="['s-button', `type-${props.type}`, `size-${props.size}`, { text: props.text, tertiary: props.tertiary, block: props.block, loading: props.loading }]">
     <span v-if="props.loading" class="s-spinner" aria-hidden="true" />
     <slot />
   </button>
@@ -32,6 +28,7 @@ const isText = computed(() => props.text || props.type === "text")
 .s-button:hover:not(:disabled) { background: var(--sui-bg-hover); }
 .s-button:disabled { cursor: not-allowed; opacity: 0.5; }
 .s-button.size-small { min-height: 28px; padding: 3px 9px; font-size: 12px; }
+.s-button.size-large { min-height: 40px; padding: 8px 18px; font-size: 14px; }
 .s-button.type-primary { border-color: var(--sui-primary); background: var(--sui-primary); color: var(--sui-on-primary); }
 .s-button.type-primary:hover:not(:disabled) { background: var(--sui-primary-hover); }
 .s-button.type-error { border-color: var(--sui-danger); background: var(--sui-danger); color: #fff; }
