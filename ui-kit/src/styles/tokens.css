@@ -30,10 +30,10 @@
   --sui-on-warning-soft: #713f12;
   --sui-warning-fg: #c05c00;
   --sui-warning-chip-bg: #fff3e0;
-  --sui-danger: #dc2626;
-  --sui-danger-soft: #fee2e2;
-  --sui-danger-strong: #e53e3e;
-  --sui-on-danger-soft: #991b1b;
+  --sui-error: #dc2626;
+  --sui-error-soft: #fee2e2;
+  --sui-error-strong: #e53e3e;
+  --sui-on-error-soft: #991b1b;
   --sui-info: #3b82f6;
   --sui-info-soft: #dbeafe;
   --sui-on-info-soft: #1d4ed8;
@@ -73,8 +73,8 @@
   --sui-fg-strong: #1c1c1c;
   --sui-fg-soft: #888;
   --sui-border-dashed: #bbb;
-  --sui-danger-hover: #dc2626;
-  --sui-on-primary-danger: #fff;
+  --sui-error-hover: #dc2626;
+  --sui-on-primary-error: #fff;
   --sui-info-strong: #1e3a5f;
   --sui-info-link: #4f46e5;
   --sui-info-link-hover: #3730a3;

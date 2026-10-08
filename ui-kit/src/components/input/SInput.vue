@@ -46,7 +46,7 @@ const clear = () => { emit("update:value", coerce("")); emit("change", coerce(""
 /* size 变体数值与 SSelect 对齐；medium 即 shared.css 的 32px 基础档 */
 .s-input.size-small { min-height: 26px; padding: 2px 8px; font-size: 12px; }
 .s-input.size-large { min-height: 38px; padding: 6px 10px; font-size: 14px; }
-.s-input.invalid { border-color: var(--sui-danger); }
+.s-input.invalid { border-color: var(--sui-error); }
 .s-input-clear { position: absolute; right: 7px; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--sui-fg-muted); cursor: pointer; }
 .s-input-clear:hover { background: var(--sui-bg-hover); color: var(--sui-fg); }
 .s-input-wrap.has-suffix .s-input-clear { right: 36px; }

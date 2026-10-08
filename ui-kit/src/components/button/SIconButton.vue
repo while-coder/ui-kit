@@ -46,6 +46,6 @@ const style = computed(() => [{ width: px(props.size, 24), height: px(props.size
 .s-icon-button:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 1px; }
 .s-icon-button.variant-outline { border: 1px solid var(--sui-border-strong); }
 .s-icon-button.variant-plain:hover { background: transparent; color: var(--sui-primary); }
-.s-icon-button.type-error { color: var(--sui-danger); }
-.s-icon-button.type-error:hover { background: var(--sui-danger-soft); color: var(--sui-danger-strong); }
+.s-icon-button.type-error { color: var(--sui-error); }
+.s-icon-button.type-error:hover { background: var(--sui-error-soft); color: var(--sui-error-strong); }
 </style>

@@ -17,7 +17,7 @@ const attrs = useAttrs()
 <style scoped>
 .s-alert { padding: 10px 12px; border-radius: var(--sui-radius-md); background: var(--sui-bg-soft); color: var(--sui-fg-secondary); font-size: 13px; line-height: 1.55; }
 .s-alert.bordered { border: 1px solid var(--sui-border); }
-.s-alert.type-error { border-color: color-mix(in srgb, var(--sui-danger) 45%, transparent); color: var(--sui-danger); }
+.s-alert.type-error { border-color: color-mix(in srgb, var(--sui-error) 45%, transparent); color: var(--sui-error); }
 .s-alert.type-warning { border-color: color-mix(in srgb, var(--sui-warning) 45%, transparent); }
 .s-alert.type-info { border-color: color-mix(in srgb, var(--sui-info) 45%, transparent); }
 /* 状态图标冗余：让状态不只靠色相区分（视觉层面；读屏语义由 role=alert/status 承担） */

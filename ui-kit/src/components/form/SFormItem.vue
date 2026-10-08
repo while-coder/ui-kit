@@ -48,8 +48,8 @@ function focusControl(event: MouseEvent) {
 .s-form-item { display: grid; gap: 6px; color: var(--sui-fg-secondary); font-size: 13px; }
 .s-form-item.inline { flex: 1 1 0; min-width: 200px; }
 .s-form-label { font-weight: 500; }
-.s-form-req { margin-left: 2px; color: var(--sui-danger); }
+.s-form-req { margin-left: 2px; color: var(--sui-error); }
 .s-form-control { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .s-form-hint { color: var(--sui-fg-disabled); font-size: 11px; }
-.s-form-error { color: var(--sui-danger); font-size: 11px; }
+.s-form-error { color: var(--sui-error); font-size: 11px; }
 </style>

@@ -23,7 +23,7 @@ const attrs = useAttrs()
 .s-tag.bordered { border: 1px solid var(--sui-border); }
 .s-tag.type-success { color: var(--sui-success); }
 .s-tag.type-warning { color: var(--sui-warning); }
-.s-tag.type-error { color: var(--sui-danger); }
+.s-tag.type-error { color: var(--sui-error); }
 .s-tag.type-info, .s-tag.type-primary { color: var(--sui-info); }
 /* 状态图标冗余：状态不只靠色相区分（WCAG 1.4.1） */
 .s-tag.type-warning::before { content: "⚠ "; font-size: 10px; }

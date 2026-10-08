@@ -25,7 +25,7 @@ const cls = computed(() => ["s-badge", `type-${props.type ?? "neutral"}`, `size-
 .s-badge.type-info { background: var(--sui-info-soft); color: var(--sui-on-info-soft); }
 .s-badge.type-warning { background: var(--sui-warning-soft); color: var(--sui-on-warning-soft); }
 .s-badge.type-success { background: var(--sui-success-soft); color: var(--sui-on-success-soft); }
-.s-badge.type-error { background: var(--sui-danger-soft); color: var(--sui-on-danger-soft); }
+.s-badge.type-error { background: var(--sui-error-soft); color: var(--sui-on-error-soft); }
 /* 状态图标冗余：状态不只靠色相区分（WCAG 1.4.1） */
 .s-badge.type-warning::before { content: "⚠ "; font-size: 9px; }
 .s-badge.type-error::before { content: "✕ "; font-size: 9px; font-weight: 700; }

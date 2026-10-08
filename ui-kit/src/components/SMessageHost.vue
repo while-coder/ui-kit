@@ -52,8 +52,8 @@ const accept = async () => { const callback = confirmState.onOk; settle(true); a
 .s-toast.type-success::before { content: "✓ "; color: var(--sui-success); font-weight: 700; }
 .s-toast.type-warning { border-left: 3px solid var(--sui-warning); }
 .s-toast.type-warning::before { content: "⚠ "; color: var(--sui-warning); }
-.s-toast.type-error { border-left: 3px solid var(--sui-danger); }
-.s-toast.type-error::before { content: "✕ "; color: var(--sui-danger); font-weight: 700; }
+.s-toast.type-error { border-left: 3px solid var(--sui-error); }
+.s-toast.type-error::before { content: "✕ "; color: var(--sui-error); font-weight: 700; }
 .s-toast.type-info { border-left: 3px solid var(--sui-info); }
 .s-toast.type-info::before { content: "ⓘ "; color: var(--sui-info); }
 .s-confirm-content { margin: 0; color: var(--sui-fg-secondary); line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }

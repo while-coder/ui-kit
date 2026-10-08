@@ -11,7 +11,7 @@ const props = withDefaults(defineProps<{ type?: "default" | "warning" | "error" 
 <style scoped>
 .s-hint { display: inline-block; font-size: 11px; color: var(--sui-fg-disabled); margin-top: 2px; }
 .s-hint.type-warning { color: var(--sui-warning-fg); }
-.s-hint.type-error { color: var(--sui-danger); }
+.s-hint.type-error { color: var(--sui-error); }
 .s-hint.type-info { color: var(--sui-info); }
 /* 状态图标冗余：状态不只靠色相区分（WCAG 1.4.1） */
 .s-hint.type-warning::before { content: "⚠ "; }

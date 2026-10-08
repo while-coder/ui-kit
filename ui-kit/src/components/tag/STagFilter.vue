@@ -60,6 +60,6 @@ const chipClass = (tag: string) => [
 .s-tag-filter-chip.selected.variant-primary, .s-tag-filter-chip.selected.variant-primary:hover { background: var(--sui-primary); border-color: var(--sui-primary); color: var(--sui-on-primary); }
 .s-tag-filter-chip.selected.variant-default, .s-tag-filter-chip.selected.variant-default:hover { background: var(--sui-bg-active); border-color: var(--sui-border-strong); color: var(--sui-fg); }
 .s-tag-filter-clear { padding: 0 6px; border: 0; background: none; color: var(--sui-fg-disabled); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
-.s-tag-filter-clear:hover { color: var(--sui-danger); }
+.s-tag-filter-clear:hover { color: var(--sui-error); }
 .s-tag-filter-clear:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 2px; }
 </style>

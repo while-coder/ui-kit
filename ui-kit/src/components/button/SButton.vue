@@ -31,7 +31,7 @@ const attrs = useAttrs()
 .s-button.size-large { min-height: 40px; padding: 8px 18px; font-size: 14px; }
 .s-button.type-primary { border-color: var(--sui-primary); background: var(--sui-primary); color: var(--sui-on-primary); }
 .s-button.type-primary:hover:not(:disabled) { background: var(--sui-primary-hover); }
-.s-button.type-error { border-color: var(--sui-danger); background: var(--sui-danger); color: #fff; }
+.s-button.type-error { border-color: var(--sui-error); background: var(--sui-error); color: #fff; }
 .s-button.text { min-height: 24px; padding: 0 4px; border-color: transparent; background: transparent; color: var(--sui-primary); }
 .s-button.tertiary { background: transparent; }
 .s-button.block { width: 100%; }

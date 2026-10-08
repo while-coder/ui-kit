@@ -40,5 +40,5 @@ const onChange = (event: Event) => emit("change", (event.target as HTMLTextAreaE
 .s-textarea { height: auto; line-height: 1.5; }
 .s-textarea.size-small { min-height: 0; padding: 3px 8px; font-size: 12px; }
 .s-textarea.size-large { padding: 8px 10px; font-size: 14px; }
-.s-textarea.invalid { border-color: var(--sui-danger); }
+.s-textarea.invalid { border-color: var(--sui-error); }
 </style>

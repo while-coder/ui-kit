@@ -177,7 +177,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.s-select.invalid { border-color: var(--sui-danger); }
+.s-select.invalid { border-color: var(--sui-error); }
 /* size-medium 即 shared.css 的 32px 基础档；size-small/size-large 为变体档 */
 .s-select.size-small { min-height: 26px; padding: 2px 8px; font-size: 12px; }
 .s-select.size-large { min-height: 38px; padding: 6px 10px; font-size: 14px; }

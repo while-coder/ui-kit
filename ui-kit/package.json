@@ -7,7 +7,9 @@
     ".": "./src/index.ts",
     "./style.css": "./src/styles/index.css",
     "./tokens.css": "./src/styles/tokens.css",
-    "./shared.css": "./src/styles/shared.css"
+    "./shared.css": "./src/styles/shared.css",
+    "./components/*": "./src/components/*",
+    "./composables/*": "./src/composables/*"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"
