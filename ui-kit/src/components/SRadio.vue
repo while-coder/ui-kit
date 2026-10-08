@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { computed, useAttrs } from "vue"
+import { useAttrs } from "vue"
 
 defineOptions({ name: "SRadio", inheritAttrs: false })
-const props = defineProps<{ value?: any; labelValue?: any; label?: string; name?: string; disabled?: boolean }>()
-const emit = defineEmits<{ "update:value": [value: any]; change: [value: any] }>()
+//语义与 SCheckbox 对齐：value = 选项自身取值，checked = 是否选中。
+//旧版 value 兼任"组选中值"、自身值放 labelValue 的颠倒设计已废弃（全库无使用方，直接修正）
+const props = defineProps<{ value?: any; checked?: boolean; label?: string; name?: string; disabled?: boolean }>()
+const emit = defineEmits<{ "update:checked": [checked: boolean]; change: [checked: boolean] }>()
 const attrs = useAttrs()
 
-// 自身取值：未传 labelValue 时回退到自身 value（单独使用时视为始终选中）
-const ownValue = computed(() => props.labelValue ?? props.value)
 const update = () => {
-  emit("update:value", ownValue.value)
-  emit("change", ownValue.value)
+  emit("update:checked", true)
+  emit("change", true)
 }
 </script>
 
 <template>
   <label v-bind="attrs" :class="['s-radio', { disabled: props.disabled }]">
-    <input type="radio" :name="props.name" :value="ownValue" :checked="props.value === ownValue" :disabled="props.disabled" @change="update" />
+    <input type="radio" :name="props.name" :value="props.value" :checked="props.checked" :disabled="props.disabled" @change="update" />
     <span v-if="props.label || $slots.default" class="s-radio-label"><slot>{{ props.label }}</slot></span>
   </label>
 </template>

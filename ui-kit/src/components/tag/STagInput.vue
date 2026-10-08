@@ -7,7 +7,8 @@ const props = withDefaults(defineProps<{
   /** 已添加的标签 */
   value: string[]
   placeholder?: string
-  size?: "sm" | "md"
+  /** 尺寸词表规范 small/medium；sm/md 为历史缩写归一（全库一条规则：sm→small、md→medium） */
+  size?: string
   disabled?: boolean
   /** 最多标签数，达到后禁止继续输入 */
   maxTags?: number
@@ -19,7 +20,7 @@ const props = withDefaults(defineProps<{
   validate?: (tag: string) => boolean | string
   /** 候选标签（输入时显示下拉建议） */
   suggestions?: string[]
-}>(), { size: "md", allowDuplicate: false, separators: () => [",", " "] })
+}>(), { size: "medium", allowDuplicate: false, separators: () => [",", " "] })
 const emit = defineEmits<{
   "update:value": [value: string[]]
   change: [value: string[]]
@@ -33,10 +34,12 @@ const inputEl = ref<HTMLInputElement | null>(null)
 const buffer = ref("")
 const focused = ref(false)
 const suggestOpen = ref(false)
+//输入法组合状态：compositionstart~end 之间为 true，期间的 keydown 不触发提交
+const composing = ref(false)
 
 const cls = computed(() => [
   "s-tag-input",
-  `size-${props.size}`,
+  `size-${props.size === "sm" ? "small" : props.size === "md" ? "medium" : props.size}`,
   { focused: focused.value, disabled: props.disabled },
 ])
 
@@ -88,6 +91,8 @@ function pickSuggestion(item: string) {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  //IME 组合期（中文输入候选中）Enter/分隔键交给输入法确认上屏，不提交标签
+  if (composing || event.isComposing) return
   if (event.key === "Enter" || props.separators.includes(event.key)) {
     event.preventDefault()
     commitBuffer()
@@ -147,6 +152,7 @@ defineExpose({ focus: focusInput })
     <input v-model="buffer" class="s-tag-input-field" :placeholder="props.value.length === 0 ? props.placeholder : ''"
       :disabled="props.disabled || reachedMax" aria-label="添加标签"
       @keydown="onKeydown" @paste="onPaste" @focus="focused = true; suggestOpen = true" @blur="onBlur"
+      @compositionstart="composing = true" @compositionend="composing = false"
       @input="suggestOpen = true" />
     <div v-if="suggestOpen && filteredSuggestions.length" class="s-tag-input-suggestions" role="listbox">
       <button v-for="item in filteredSuggestions" :key="item" type="button" role="option" :aria-selected="false"
@@ -157,14 +163,14 @@ defineExpose({ focus: focusInput })
 
 <style scoped>
 .s-tag-input { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; min-height: 32px; padding: 4px 8px; border: 1px solid var(--sui-border-strong); border-radius: var(--sui-radius-md); background: var(--sui-bg); color: var(--sui-fg); font-size: 13px; cursor: text; box-sizing: border-box; transition: border-color var(--sui-transition); }
-.s-tag-input.size-sm { gap: 4px; min-height: 26px; padding: 2px 8px; font-size: 12px; }
+.s-tag-input.size-small { gap: 4px; min-height: 26px; padding: 2px 8px; font-size: 12px; }
 .s-tag-input.focused { border-color: var(--sui-primary); }
 .s-tag-input.disabled { background: var(--sui-bg-subtle); color: var(--sui-fg-disabled); cursor: not-allowed; }
 .s-tag-input-field { flex: 1; min-width: 80px; padding: 2px 0; border: 0; outline: none; background: transparent; color: inherit; font: inherit; font-size: inherit; }
 .s-tag-input-field::placeholder { color: var(--sui-fg-disabled); }
 .s-tag-input-field:disabled { cursor: not-allowed; }
-/* sm 尺寸下压缩 wm STag 的默认体积（不改 STag 本身） */
-.s-tag-input.size-sm .s-tag { min-height: 20px; padding: 0 6px; font-size: 11px; }
+/* small 尺寸下压缩 wm STag 的默认体积（不改 STag 本身） */
+.s-tag-input.size-small .s-tag { min-height: 20px; padding: 0 6px; font-size: 11px; }
 .s-tag-input-suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: var(--sui-z-dropdown); display: grid; max-height: 200px; gap: 2px; padding: 5px; overflow-y: auto; border: 1px solid var(--sui-border-strong); border-radius: var(--sui-radius-md); background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); }
 .s-tag-input-suggestion { padding: 5px 7px; border: 0; border-radius: var(--sui-radius-sm); background: none; color: var(--sui-fg-secondary); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
 .s-tag-input-suggestion:hover { background: var(--sui-bg-hover); }

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { computed, defineComponent, h, reactive, ref, unref, watch, type CSSProperties, type PropType, type Ref } from "vue"
+import { computed, defineComponent, h, onBeforeUnmount, reactive, ref, unref, watch, type CSSProperties, type PropType, type Ref } from "vue"
 import type { SelectOption } from "./SSelect.vue"
 
 export interface DataTableColumn {
@@ -83,6 +83,8 @@ export default defineComponent({
     const totalCols = computed(() => props.columns.length + (props.expandable ? 1 : 0))
     const columnKey = (column: DataTableColumn, index: number) => String(column.key ?? index)
     const columnWidth = (column: DataTableColumn, index: number) => columnWidths[columnKey(column, index)] ?? column.width
+    //列宽拖拽的活动清理句柄：pointercancel/组件卸载都会走到，避免监听残留后鼠标移动继续改列宽
+    let activeResizeCleanup: (() => void) | null = null
     const StartResize = (event: PointerEvent, column: DataTableColumn, index: number) => {
       event.preventDefault()
       event.stopPropagation()
@@ -96,10 +98,15 @@ export default defineComponent({
       const onUp = () => {
         window.removeEventListener("pointermove", onMove)
         window.removeEventListener("pointerup", onUp)
+        window.removeEventListener("pointercancel", onUp)
+        activeResizeCleanup = null
       }
+      activeResizeCleanup = onUp
       window.addEventListener("pointermove", onMove)
-      window.addEventListener("pointerup", onUp, { once: true })
+      window.addEventListener("pointerup", onUp)
+      window.addEventListener("pointercancel", onUp)
     }
+    onBeforeUnmount(() => activeResizeCleanup?.())
 
     return () => h("div", { ...attrs, class: ["s-data-table", attrs.class], style: [{ maxHeight: props.maxHeight == null ? undefined : px(props.maxHeight as any), minHeight: props.minHeight == null ? undefined : px(props.minHeight as any) }, attrs.style] }, h("table", { class: ["s-table", { resizable: props.columns.some(column => column.resizable) }], style: props.tableStyle }, [
       h("thead", h("tr", [

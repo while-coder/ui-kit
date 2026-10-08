@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useAttrs } from "vue"
+import { computed, ref, useAttrs } from "vue"
 
 defineOptions({ name: "STreeRow", inheritAttrs: false })
 const props = withDefaults(defineProps<{
@@ -23,17 +23,47 @@ const emit = defineEmits<{
 }>()
 const attrs = useAttrs()
 
+//库内暂无父容器管理焦点（STreePanel 仅是布局壳），默认 tabindex 0 保证可 Tab 进入；外部父级做 roving 时可经 attrs 传 -1 覆盖
+const root = ref<HTMLElement | null>(null)
+
 const indent = computed(() => ({
   paddingLeft: props.type === "category" ? "12px" : `calc(12px + ${props.level} * 12px)`,
 }))
 const onClick = (event: MouseEvent) => {
+  root.value?.focus()
   emit("click", event)
   if (props.expandable) emit("toggle", event)
+}
+//同树行：与自己同父容器的 .s-tree-row（兼容 li 等单层包裹），按文档顺序
+const siblingRows = (): HTMLElement[] => {
+  const container = root.value?.parentElement
+  if (!root.value || !container) return []
+  return Array.from(container.querySelectorAll<HTMLElement>(":scope > .s-tree-row, :scope > * > .s-tree-row"))
+}
+const onKeydown = (event: KeyboardEvent) => {
+  //事件源自子元素（如 actions 槽里的按钮）时交给它自己处理，避免误触发整行激活
+  if (event.target !== event.currentTarget) return
+  if (event.altKey || event.ctrlKey || event.metaKey) return
+  //TODO 接父级 roving 管理：库内暂无父容器维护焦点行与 up/down 事件（STreePanel 仅是布局壳），先按 DOM 同级行切换
+  if (event.key === "Enter" || event.key === " ") {
+    //键盘激活与点击等价：选中 + 展开
+    event.preventDefault()
+    onClick(new MouseEvent("click"))
+    return
+  }
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return
+  event.preventDefault()
+  const rows = siblingRows()
+  const index = rows.indexOf(root.value!)
+  if (index < 0) return
+  //循环 wrap
+  const delta = event.key === "ArrowDown" ? 1 : -1
+  rows[(index + delta + rows.length) % rows.length]?.focus()
 }
 </script>
 
 <template>
-  <div v-bind="attrs" class="s-tree-row" :class="[`type-${props.type}`, { selected: props.selected, expanded: props.expanded }]" :style="indent" role="treeitem" :aria-selected="props.selected" :aria-expanded="props.expandable ? props.expanded : undefined" @click="onClick">
+  <div v-bind="attrs" ref="root" class="s-tree-row" :class="[`type-${props.type}`, { selected: props.selected, expanded: props.expanded }]" :style="indent" role="treeitem" :tabindex="(attrs.tabindex as number | string | undefined) ?? 0" :aria-selected="props.selected" :aria-expanded="props.expandable ? props.expanded : undefined" @click="onClick" @keydown="onKeydown">
     <span v-if="props.expandable" class="s-tree-row-chevron" :class="{ open: props.expanded }" aria-hidden="true">▶</span>
     <span v-else-if="props.type !== 'category'" class="s-tree-row-icon"><slot name="icon" /></span>
     <span class="s-tree-row-label"><slot /></span>

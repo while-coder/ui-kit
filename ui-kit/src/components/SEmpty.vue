@@ -2,7 +2,7 @@
 import { useAttrs } from "vue"
 
 defineOptions({ name: "SEmpty", inheritAttrs: false })
-const props = withDefaults(defineProps<{ description?: string; size?: string }>(), { description: "暂无数据" })
+const props = withDefaults(defineProps<{ description?: string }>(), { description: "暂无数据" })
 const attrs = useAttrs()
 </script>
 

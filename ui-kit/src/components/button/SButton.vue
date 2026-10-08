@@ -13,8 +13,8 @@ const props = withDefaults(defineProps<{
 }>(), { type: "default", size: "medium" })
 const attrs = useAttrs()
 
-//type 兼容别名：danger→error（危险色实底）、outline→default（wm 默认即描边款）；size 兼容 sm/md 缩写
-const normalizedType = computed(() => props.type === "danger" ? "error" : props.type === "outline" ? "default" : props.type)
+//type 兼容别名：outline→default（wm 默认即描边款）；size 兼容 sm/md 缩写
+const normalizedType = computed(() => props.type === "outline" ? "default" : props.type)
 const normalizedSize = computed(() => props.size === "sm" ? "small" : props.size === "md" ? "medium" : props.size)
 const isText = computed(() => props.text || props.type === "text")
 </script>

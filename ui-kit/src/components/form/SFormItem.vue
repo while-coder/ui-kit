@@ -13,11 +13,26 @@ const props = defineProps<{
   inline?: boolean
 }>()
 const attrs = useAttrs()
+
+//label 与控件的可访问性关联：控件在任意 slot 里无法拿 id 做 for，
+//退而用 role=group + aria-labelledby/aria-required 让读屏把整组与标签、必填态一起播报；
+//点击 label 时把焦点送进控件区（鼠标可用性与原生 label[for] 对齐）
+let seq = 0
+const labelId = `s-form-item-label-${++seq}`
+function focusControl(event: MouseEvent) {
+  //控件是任意 slot 内容，点 label 时手动把焦点送进控件区第一个可聚焦元素（对齐原生 label[for] 行为）
+  const item = (event.currentTarget as HTMLElement).parentElement
+  const control = item?.querySelector<HTMLElement>(".s-form-control")
+  const target = control?.querySelector<HTMLElement>("input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex='-1'])")
+  target?.focus()
+}
 </script>
 
 <template>
-  <div v-bind="attrs" :class="['s-form-item', { inline: props.inline }]">
-    <label v-if="props.label || $slots.label" class="s-form-label">
+  <div v-bind="attrs" :class="['s-form-item', { inline: props.inline }]"
+    role="group" :aria-labelledby="props.label || $slots.label ? labelId : undefined"
+    :aria-required="props.required || undefined">
+    <label v-if="props.label || $slots.label" :id="labelId" class="s-form-label" @click="focusControl">
       <slot name="label">{{ props.label }}</slot>
       <span v-if="props.required" class="s-form-req" aria-hidden="true">*</span>
     </label>

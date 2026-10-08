@@ -4,6 +4,8 @@ import { ref } from "vue"
 let modalId = 0
 //当前打开的模态框数量（含嵌套）：供 SFloatWindow 等 Esc 消费方避让——模态开着时浮窗不响应 Esc
 export const openModalCount = ref(0)
+//打开顺序栈：Esc 只关栈顶实例，业务弹窗与 confirm 同开时按一次不再全部关闭
+const modalStack: object[] = []
 </script>
 
 <script setup lang="ts">
@@ -12,8 +14,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, useAttrs, wat
 defineOptions({ name: "SModal", inheritAttrs: false })
 const props = withDefaults(defineProps<{
   show?: boolean
-  /** show 的别名（历史约定）：v-model:visible 亦可驱动 */
-  visible?: boolean
   title?: string
   preset?: string
   style?: any
@@ -22,21 +22,17 @@ const props = withDefaults(defineProps<{
   closable?: boolean
   maskClosable?: boolean
   closeOnEsc?: boolean
-  /** maskClosable 的别名 */
-  closeOnOverlay?: boolean
-  /** closeOnEsc 的别名 */
-  closeOnEscape?: boolean
   nested?: boolean
   draggable?: boolean
   resizable?: boolean
 }>(), { closable: true, maskClosable: true, closeOnEsc: true })
-const emit = defineEmits<{ "update:show": [value: any]; "update:visible": [value: any]; close: [] }>()
+const emit = defineEmits<{ "update:show": [value: any]; close: [] }>()
 const attrs = useAttrs()
 
-const isShown = computed(() => props.show || props.visible)
-//closeOnOverlay/closeOnEscape 为别名：传了以别名为准，否则回退 maskClosable/closeOnEsc
-const canMaskClose = computed(() => props.closeOnOverlay ?? props.maskClosable)
-const canEscClose = computed(() => props.closeOnEscape ?? props.closeOnEsc)
+//v-model 统一走 show（visible/closeOnOverlay/closeOnEscape 历史别名已移除，全库无使用）
+const isShown = computed(() => props.show)
+const canMaskClose = computed(() => props.maskClosable)
+const canEscClose = computed(() => props.closeOnEsc)
 
 const titleId = `s-modal-title-${++modalId}`
 const box = ref<HTMLElement | null>(null)
@@ -138,12 +134,60 @@ function unobserveBox() {
 }
 let previousFocus: HTMLElement | null = null
 let modalCounted = false
-const close = () => { emit("update:show", false); emit("update:visible", false); emit("close") }
-const onKey = (event: KeyboardEvent) => { if (isShown.value && canEscClose.value && event.key === "Escape") close() }
+const stackToken: object = {}
+let stacked = false
+const pushStack = () => { if (!stacked) { stacked = true; modalStack.push(stackToken) } }
+const popStack = () => { if (stacked) { stacked = false; const index = modalStack.indexOf(stackToken); if (index >= 0) modalStack.splice(index, 1) } }
+const close = () => { emit("update:show", false); emit("close") }
+//Tab 焦点圈围：收集 box 内可聚焦元素，过滤禁用与隐藏
+const getFocusable = () => {
+  const el = box.value
+  if (!el) return [] as HTMLElement[]
+  return Array.from(el.querySelectorAll<HTMLElement>("button, input, textarea, select, a[href], [tabindex]:not([tabindex='-1'])"))
+    .filter(item => !item.hasAttribute("disabled") && !item.hidden && item.getClientRects().length > 0)
+}
+//Tab/Shift+Tab 在弹窗内循环；只在本实例是栈顶时生效
+const trapTab = (event: KeyboardEvent) => {
+  const items = getFocusable()
+  //盒内无可聚焦元素：焦点留在 box（box 自身有 tabindex="-1"）
+  if (!items.length) {
+    event.preventDefault()
+    box.value?.focus()
+    return
+  }
+  const active = document.activeElement
+  const inside = active instanceof Node && !!box.value?.contains(active)
+  const currentIndex = inside ? items.indexOf(active as HTMLElement) : -1
+  if (event.shiftKey) {
+    //焦点已在盒外（如浏览器 UI 回来）或已在第一个：拉到最后一个
+    if (currentIndex <= 0) {
+      event.preventDefault()
+      items[items.length - 1].focus()
+    }
+  } else {
+    //焦点已在盒外、不在列表（如 box 自身）或已在最后一个：拉到第一个
+    if (currentIndex < 0 || currentIndex === items.length - 1) {
+      event.preventDefault()
+      items[0].focus()
+    }
+  }
+}
+//只有栈顶实例响应 Esc/Tab：多个弹窗各自挂的 keydown 都会触发，非栈顶直接忽略
+const onKey = (event: KeyboardEvent) => {
+  if (!isShown.value) return
+  if (modalStack[modalStack.length - 1] !== stackToken) return
+  if (event.key === "Escape") {
+    if (!canEscClose.value) return
+    close()
+    return
+  }
+  if (event.key === "Tab") trapTab(event)
+}
 const onMask = (event: MouseEvent) => { if (canMaskClose.value && event.target === event.currentTarget) close() }
 watch(isShown, show => {
   if (show) {
     if (!modalCounted) { modalCounted = true; openModalCount.value++ }
+    pushStack()
     previousFocus = document.activeElement as HTMLElement | null
     document.addEventListener("keydown", onKey)
     nextTick(() => {
@@ -152,6 +196,7 @@ watch(isShown, show => {
     })
   } else {
     if (modalCounted) { modalCounted = false; openModalCount.value-- }
+    popStack()
     document.removeEventListener("keydown", onKey)
     previousFocus?.focus()
     previousFocus = null
@@ -170,8 +215,9 @@ onMounted(() => {
   window.addEventListener("resize", keepBoxInViewport)
 })
 onBeforeUnmount(() => {
-  //开着时直接卸载（v-if 外层控制）也要回退计数
+  //开着时直接卸载（v-if 外层控制）也要回退计数与栈位
   if (modalCounted) { modalCounted = false; openModalCount.value-- }
+  popStack()
   document.removeEventListener("keydown", onKey)
   unobserveBox()
   window.removeEventListener("pointermove", moveDrag)

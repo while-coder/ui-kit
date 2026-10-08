@@ -2,8 +2,8 @@ import { reactive } from "vue"
 
 type ToastType = "info" | "success" | "warning" | "error"
 interface ToastItem { id: number; type: ToastType; text: string }
-// 确认弹窗可选项：confirmText/cancelText 定制按钮文案，danger 时确认钮显示为危险色
-export interface ConfirmOptions { title: string; content: string; confirmText?: string; cancelText?: string; danger?: boolean }
+// 确认弹窗可选项：confirmText/cancelText 定制按钮文案
+export interface ConfirmOptions { title: string; content: string; confirmText?: string; cancelText?: string }
 interface ConfirmState extends ConfirmOptions {
   visible: boolean
   onOk?: () => unknown
@@ -23,12 +23,22 @@ export const toast = {
 }
 
 // 确认弹窗：await 拿到用户选择；重复弹出时上一次未决的 Promise 以 false 收场。
-// 两种签名：show(title, content, onOk?) 或 show(options, onOk?)，后者可定制按钮文案/danger
+// 三种签名：show(title, content, onOk?)、show(options, onOk?)、show(title, onOk)，回调都生效
 export const confirm = {
-  show(options: ConfirmOptions | string, content?: string, onOk?: () => unknown): Promise<boolean> {
+  show(options: ConfirmOptions | string, content?: string | (() => unknown), onOk?: () => unknown): Promise<boolean> {
     confirmState.resolve?.(false)
-    const normalized: ConfirmOptions = typeof options === "string" ? { title: options, content: content ?? "" } : options
-    Object.assign(confirmState, { confirmText: undefined, cancelText: undefined, danger: undefined, visible: true, onOk }, normalized)
+    let normalized: ConfirmOptions
+    let callback: (() => unknown) | undefined
+    if (typeof options === "string") {
+      // show(title, onOk)：content 位置直接传了回调
+      if (typeof content === "function") { normalized = { title: options, content: "" }; callback = content }
+      else { normalized = { title: options, content: content ?? "" }; callback = onOk }
+    } else {
+      // show(options, onOk)：第 2 参是回调而不是 content（旧实现只认第 3 参，回调被静默丢弃）
+      normalized = options
+      callback = typeof content === "function" ? content : onOk
+    }
+    Object.assign(confirmState, { confirmText: undefined, cancelText: undefined, visible: true, onOk: callback }, normalized)
     return new Promise(resolve => { confirmState.resolve = resolve })
   }
 }

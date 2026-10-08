@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, Fragment, h, ref, watch, type VNode } from "vue"
+import { defineComponent, Fragment, h, nextTick, ref, watch, type VNode } from "vue"
 
 function flattenVNodes(nodes: VNode[] = []): VNode[] {
   const result: VNode[] = []
@@ -16,7 +16,7 @@ export default defineComponent({
   name: "STabs",
   inheritAttrs: false,
   emits: ["update:value"],
-  props: { value: null, type: String, placement: String, size: String },
+  props: { value: null, type: String, placement: String },
   setup(props, { attrs, emit, slots }) {
     const id = `s-tabs-${++tabsId}`
     const internal = ref<unknown>(props.value)
@@ -27,19 +27,36 @@ export default defineComponent({
       if (internal.value == null && items.length) internal.value = items[0].props?.name
       const active = props.value !== undefined ? props.value : internal.value
       const choose = (value: unknown) => { internal.value = value; emit("update:value", value) }
+      //roving tabindex：只有入口 tab（激活项；无匹配时退第一个）可 Tab 进入，其余 -1
+      const activeIndex = items.findIndex(node => node.props?.name === active)
+      const tabbable = activeIndex >= 0 ? activeIndex : 0
+      const focusTab = (index: number) => nextTick(() => document.getElementById(`${id}-tab-${index}`)?.focus())
       const tabs = items.map((node, index) => {
         const nodeSlots = node.children as Record<string, () => unknown> | null
         const selected = node.props?.name === active
         return h("div", {
           id: `${id}-tab-${index}`,
           role: "tab",
-          tabindex: 0,
+          tabindex: index === tabbable ? 0 : -1,
           "aria-selected": selected,
           "aria-controls": (node.type as any)?.name === "STabPane" ? `${id}-panel-${index}` : undefined,
           class: ["s-tab-button", { active: selected }],
           onClick: () => choose(node.props?.name),
           onKeydown: (event: KeyboardEvent) => {
-            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); choose(node.props?.name) }
+            //事件源自 tab 内子元素时交给它自己处理
+            if (event.target !== event.currentTarget) return
+            //自动激活模式：方向键/Home/End 移动焦点的同时切换激活，循环 wrap
+            const count = items.length
+            let target = -1
+            if (event.key === "ArrowRight" || event.key === "ArrowDown") target = (index + 1) % count
+            else if (event.key === "ArrowLeft" || event.key === "ArrowUp") target = (index - 1 + count) % count
+            else if (event.key === "Home") target = 0
+            else if (event.key === "End") target = count - 1
+            else if (event.key === "Enter" || event.key === " ") { event.preventDefault(); choose(node.props?.name); return }
+            else return
+            event.preventDefault()
+            choose(items[target]?.props?.name)
+            focusTab(target)
           },
         }, [
           nodeSlots?.tab?.() ?? node.props?.tab ?? node.props?.name,

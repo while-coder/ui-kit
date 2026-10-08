@@ -1,15 +1,19 @@
 <template>
   <section ref="root" class="dock-tabbar" :class="{ focused }">
-    <div ref="list" class="dock-tabbar-list" @pointerdown="onListPointerDown" @dblclick="onListDblClick">
+    <div ref="list" class="dock-tabbar-list" role="tablist" @pointerdown="onListPointerDown" @dblclick="onListDblClick">
       <div
         v-for="item in items"
         :key="item.id"
         class="dock-tab"
         :data-tab-id="item.id"
         :class="{ active: item.id === activeId }"
+        role="tab"
+        :aria-selected="item.id === activeId"
+        :tabindex="tabindexFor(item)"
         @pointerenter="SyncTooltip($event, item)"
         @pointerleave="ClearTooltip($event)"
         @click="emit('activate', item.id)"
+        @keydown="onTabKeydown($event, item)"
         @dblclick.stop="emit('toggle-float', item.id)"
         @pointerdown="emit('start-drag', $event, item.id)"
       >
@@ -31,7 +35,7 @@
 <script lang="ts">
 //工作区的组内 tab 条：只负责展示和发出交互事件，拖拽状态机、drop 命中都在 DockWorkspace。
 //结构上对应 sterm 的 TabShell，去掉了右键菜单和 i18n。
-import { computed, defineComponent, ref } from "vue";
+import { computed, defineComponent, nextTick, ref } from "vue";
 
 export interface TabbarItem {
   id: string
@@ -100,7 +104,35 @@ export default defineComponent({
     const ClearTooltip = (event: PointerEvent) => {
       ;(event.currentTarget as HTMLElement).removeAttribute("title")
     }
-    return { root, list, insertStyle, emit, getElement, SyncTooltip, ClearTooltip, onListPointerDown, onListDblClick }
+    //roving tabindex：激活项可 Tab 进入，其余 -1；组内没有激活项时（activeId 为空/不在列表里）落在第一个
+    const tabindexFor = (item: TabbarItem) => {
+      const rovingId = props.items.some(entry => entry.id === props.activeId) ? props.activeId : props.items[0]?.id ?? ""
+      return item.id === rovingId ? 0 : -1
+    }
+    //键盘可达性：Enter/Space 激活当前 tab；左右方向键在同组 tab 间循环移动 roving 焦点并激活
+    //（tab 条是横滚布局，走横轴）。焦点跟随激活项，激活事件与 @click 完全同一条通路
+    const onTabKeydown = (event: KeyboardEvent, item: TabbarItem) => {
+      //关闭钮等内嵌 button 的按键不拦截，交给 button 自己的 click 语义
+      if ((event.target as HTMLElement | null)?.closest?.("button")) return
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault()
+        emit("activate", item.id)
+        return
+      }
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+      if (props.items.length < 2) return
+      const index = props.items.findIndex(entry => entry.id === item.id)
+      if (index < 0) return
+      event.preventDefault()
+      const delta = event.key === "ArrowRight" ? 1 : -1
+      const next = props.items[(index + delta + props.items.length) % props.items.length]
+      emit("activate", next.id)
+      //激活后 activeId 变化会翻转 tabindex，等 DOM 更新完把焦点挪到新激活项
+      nextTick(() => {
+        list.value?.querySelector<HTMLElement>(`.dock-tab[data-tab-id="${CSS.escape(next.id)}"]`)?.focus()
+      })
+    }
+    return { root, list, insertStyle, emit, getElement, SyncTooltip, ClearTooltip, onListPointerDown, onListDblClick, tabindexFor, onTabKeydown }
   },
 })
 </script>
@@ -148,6 +180,8 @@ export default defineComponent({
 }
 .dock-tab:hover { background: var(--sui-bg-hover); color: var(--sui-fg); }
 .dock-tab.active { border-bottom-color: var(--sui-primary); color: var(--sui-primary); }
+/*键盘导航（roving tabindex）的可见焦点：表头只有 34px 高，outline 内缩避免被裁切*/
+.dock-tab:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: -2px; }
 .dock-tab-title {
   flex: 1;
 }

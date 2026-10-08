@@ -26,8 +26,20 @@ const move = (event: PointerEvent) => {
   const raw = props.direction === "vertical" ? (event.clientY - rect.top) / rect.height : (event.clientX - rect.left) / rect.width
   setSize(raw)
 }
-const stop = () => { moving = false; window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop) }
-const start = (event: PointerEvent) => { event.preventDefault(); moving = true; window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop) }
+const stop = () => {
+  moving = false
+  window.removeEventListener("pointermove", move)
+  window.removeEventListener("pointerup", stop)
+  window.removeEventListener("pointercancel", stop)
+}
+const start = (event: PointerEvent) => {
+  event.preventDefault()
+  moving = true
+  window.addEventListener("pointermove", move)
+  window.addEventListener("pointerup", stop)
+  //触控/系统手势取消指针时同样收尾，否则后续移动会继续改分栏比
+  window.addEventListener("pointercancel", stop)
+}
 const adjust = (event: KeyboardEvent) => {
   const forward = props.direction === "vertical" ? event.key === "ArrowDown" : event.key === "ArrowRight"
   const backward = props.direction === "vertical" ? event.key === "ArrowUp" : event.key === "ArrowLeft"

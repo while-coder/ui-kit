@@ -5,7 +5,7 @@ const px = (value: string | number | undefined, fallback = 8) =>
   typeof value === "number" ? `${value}px` : (value ?? `${fallback}px`)
 
 defineOptions({ name: "SForm", inheritAttrs: false })
-defineProps<{ labelPlacement?: string; labelWidth?: string | number; size?: string }>()
+defineProps<{ labelPlacement?: string; labelWidth?: string | number }>()
 const attrs = useAttrs()
 </script>
 

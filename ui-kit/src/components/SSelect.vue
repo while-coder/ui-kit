@@ -29,11 +29,16 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   placeholder?: string
   clearable?: boolean
+  /** 尺寸词表规范 small/medium；xs/sm/md 为历史缩写归一（全库一条规则：xs/sm→small、md→medium） */
   size?: string
   invalid?: boolean
 }>(), { options: () => [] })
 const emit = defineEmits<{ "update:value": [value: any]; change: [value: any] }>()
 const attrs = useAttrs()
+const normalizedSize = computed(() => {
+  if (!props.size) return null
+  return props.size === "xs" || props.size === "sm" ? "small" : props.size === "md" ? "medium" : props.size
+})
 
 const root = ref<HTMLElement | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
@@ -77,13 +82,57 @@ const onNativeChange = (event: Event) => {
 const outside = (event: PointerEvent) => {
   if (open.value && !root.value?.contains(event.target as Node)) open.value = false
 }
+//listbox 键盘导航：菜单展开期间记录激活项索引，通过 aria-activedescendant + .active 类高亮
+const activeIndex = ref(-1)
+const optionId = (index: number) => index >= 0 ? `s-select-opt-${index}` : undefined
+const isNavigable = (option: SelectOption | undefined) => !!option && !option.disabled && !option.divider
+//打开时的默认激活项：已选项位置，否则第一个可选项，都没有则 0
+const initialActiveIndex = () => {
+  const total = props.options.length
+  if (!total) return -1
+  let index = props.options.findIndex(option => isNavigable(option) && isSelected(option))
+  if (index < 0) index = props.options.findIndex(isNavigable)
+  return index < 0 ? 0 : index
+}
+//上下移动激活项（循环 wrap），跳过禁用与分隔线
+const moveActive = (step: number) => {
+  const total = props.options.length
+  if (!total) return
+  let index = activeIndex.value < 0 ? 0 : activeIndex.value
+  for (let i = 0; i < total; i++) {
+    index = (index + step + total) % total
+    if (isNavigable(props.options[index])) {
+      activeIndex.value = index
+      return
+    }
+  }
+}
 const keydown = (event: KeyboardEvent) => {
-  if (event.key !== "Escape" || !open.value) return
-  open.value = false
-  trigger.value?.focus()
+  if (!open.value) return
+  //Escape 优先级最高：关闭并把焦点还给触发器
+  if (event.key === "Escape") {
+    open.value = false
+    trigger.value?.focus()
+    return
+  }
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault()
+    moveActive(event.key === "ArrowDown" ? 1 : -1)
+    return
+  }
+  if (event.key === "Enter" || event.key === " ") {
+    const option = props.options[activeIndex.value]
+    if (!isNavigable(option)) return
+    //阻止默认行为：焦点在触发器按钮上时避免 Enter/Space 再次触发 click 开合
+    event.preventDefault()
+    //single 形态点选即关；多选形态切换当前高亮项
+    if (props.single) pickSingle(option)
+    else updateOption(option, !isSelected(option))
+  }
 }
 watch(open, value => {
   if (value) {
+    activeIndex.value = initialActiveIndex()
     document.addEventListener("pointerdown", outside)
     document.addEventListener("keydown", keydown)
   } else {
@@ -99,7 +148,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div v-if="multiple" v-bind="attrs" ref="root" class="s-multi-select" :class="{ compact: props.compact, single: props.single, up: props.placement === 'top' }">
-    <button ref="trigger" type="button" class="s-select s-multi-select-trigger" :class="[size ? `size-${size}` : null, { invalid: props.invalid }]"
+    <button ref="trigger" type="button" class="s-select s-multi-select-trigger" :class="[normalizedSize ? `size-${normalizedSize}` : null, { invalid: props.invalid }]"
       :disabled="disabled" aria-haspopup="listbox" :aria-expanded="open" @click="open = !open">
       <span class="s-multi-select-value" :title="props.single ? undefined : selectedLabel">
         <template v-if="props.single">
@@ -113,9 +162,10 @@ onBeforeUnmount(() => {
       </span>
       <svg :class="['s-multi-select-arrow', { open }]" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
     </button>
-    <div v-if="open" class="s-multi-select-menu" role="listbox" :aria-multiselectable="!props.single">
+    <div v-if="open" class="s-multi-select-menu" role="listbox" :aria-multiselectable="!props.single" :aria-activedescendant="open ? optionId(activeIndex) : undefined">
       <div v-if="options.length === 0" class="s-multi-select-empty">—</div>
-      <label v-for="(option, index) in options" :key="index" :class="['s-multi-select-option', { disabled: option.disabled, checked: props.single && isSelected(option) }]"
+      <label v-for="(option, index) in options" :key="index" :id="optionId(index)"
+        :class="['s-multi-select-option', { disabled: option.disabled, checked: props.single && isSelected(option), active: index === activeIndex }]"
         role="option" :aria-selected="isSelected(option)" @click="props.single ? pickSingle(option) : undefined">
         <input v-if="!props.single" type="checkbox" :checked="isSelected(option)" :disabled="option.disabled"
           @change="updateOption(option, ($event.target as HTMLInputElement).checked)" />
@@ -123,7 +173,7 @@ onBeforeUnmount(() => {
       </label>
     </div>
   </div>
-  <select v-else v-bind="attrs" class="s-select" :class="[size ? `size-${size}` : null, { invalid: props.invalid }]" :value="(value as any)"
+  <select v-else v-bind="attrs" class="s-select" :class="[normalizedSize ? `size-${normalizedSize}` : null, { invalid: props.invalid }]" :value="(value as any)"
     :disabled="disabled" @change="onNativeChange">
     <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
     <option v-for="option in options" :key="optionValue(option)" :value="optionValue(option)" :disabled="option.disabled">{{ optionLabel(option) }}</option>
@@ -132,6 +182,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .s-select.invalid { border-color: var(--sui-danger); }
+/* size-medium 即 shared.css 的 32px 基础档；size-small 此前只生成类名没有样式，这里补齐 */
+.s-select.size-small { min-height: 26px; padding: 2px 8px; font-size: 12px; }
+.s-multi-select-trigger.size-small { min-height: 26px; padding: 3px 6px 3px 8px; font-size: 12px; }
 .s-multi-select { position: relative; width: 100%; min-width: 0; }
 .s-multi-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; }
 .s-multi-select.compact .s-multi-select-trigger { min-height: 26px; padding: 3px 6px 3px 8px; }
@@ -147,6 +200,8 @@ onBeforeUnmount(() => {
 .s-multi-select.up .s-multi-select-menu { top: auto; bottom: calc(100% + 4px); }
 .s-multi-select-option { display: flex; min-height: 30px; align-items: center; gap: 8px; padding: 5px 7px; border-radius: var(--sui-radius-sm); color: var(--sui-fg-secondary); cursor: pointer; font-size: 13px; }
 .s-multi-select-option:hover { background: var(--sui-bg-hover); }
+/*键盘导航高亮：与 checked 共存时放在前面，让 checked 的底色优先生效*/
+.s-multi-select-option.active { background: var(--sui-bg-hover); }
 .s-multi-select-option.checked { background: var(--sui-bg-active); font-weight: 500; }
 .s-multi-select-option.disabled { cursor: not-allowed; opacity: .5; }
 .s-multi-select-option input { accent-color: var(--sui-primary); }

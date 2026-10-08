@@ -2,14 +2,15 @@
 import { useAttrs } from "vue"
 
 defineOptions({ name: "STabPane", inheritAttrs: false })
-defineProps<{ name?: any; tab?: string | number; count?: string | number; active?: boolean; displayDirective?: string; tabId?: string; panelId?: string }>()
+//displayDirective="destroy"：非激活时销毁 pane 内容（默认保活，仅 display:none）
+const props = defineProps<{ name?: any; tab?: string | number; count?: string | number; active?: boolean; displayDirective?: string; tabId?: string; panelId?: string }>()
 const attrs = useAttrs()
 </script>
 
 <template>
   <section v-bind="attrs" :id="panelId" role="tabpanel" :aria-labelledby="tabId"
     :class="['s-tab-pane', { active }]" :style="[attrs.style, active ? null : { display: 'none' }]">
-    <slot />
+    <slot v-if="props.displayDirective !== 'destroy' || active" />
   </section>
 </template>
 

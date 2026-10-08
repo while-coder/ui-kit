@@ -2,10 +2,12 @@
 import { computed, useAttrs } from "vue"
 
 defineOptions({ name: "SChip", inheritAttrs: false })
-const props = withDefaults(defineProps<{ variant?: "default" | "warning"; clickable?: boolean }>(), { variant: "default" })
+//色相走 type（对齐全库 type-* class 约定）；variant 为历史别名
+const props = withDefaults(defineProps<{ type?: "default" | "warning"; variant?: "default" | "warning"; clickable?: boolean }>(), { type: "default" })
 const attrs = useAttrs()
 
-const cls = computed(() => ["s-chip", `type-${props.variant}`, { clickable: props.clickable }])
+const normalizedType = computed(() => props.type !== "default" ? props.type : (props.variant ?? "default"))
+const cls = computed(() => ["s-chip", `type-${normalizedType.value}`, { clickable: props.clickable }])
 </script>
 
 <template>

@@ -11,7 +11,6 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   clearable?: boolean
   autosize?: boolean | Record<string, unknown>
-  size?: string
   invalid?: boolean
 }>(), { type: "text" })
 const emit = defineEmits<{ "update:value": [value: any]; change: [value: any]; clear: [] }>()

@@ -47,7 +47,15 @@
       class="dock-resizer"
       :class="splitRect.direction"
       :style="splitStyle(splitRect)"
+      role="separator"
+      tabindex="0"
+      :aria-orientation="splitRect.direction === 'horizontal' ? 'vertical' : 'horizontal'"
+      :aria-valuemin="15"
+      :aria-valuemax="85"
+      :aria-valuenow="Math.round(splitRatioOf(splitRect))"
+      aria-label="调整分屏比例"
       @pointerdown.prevent="startSplitResize($event, splitRect)"
+      @keydown="onSplitKeydown($event, splitRect)"
       @dblclick="setSplitRatio(state, splitRect.splitId, 50)"
     ></div>
     </template>
@@ -104,10 +112,25 @@
           class="dock-resizer"
           :class="splitRect.direction"
           :style="splitStyle(splitRect)"
+          role="separator"
+          tabindex="0"
+          :aria-orientation="splitRect.direction === 'horizontal' ? 'vertical' : 'horizontal'"
+          :aria-valuemin="15"
+          :aria-valuemax="85"
+          :aria-valuenow="Math.round(splitRatioOf(splitRect))"
+          aria-label="调整分屏比例"
           @pointerdown.prevent="startSplitResize($event, splitRect, float.id)"
+          @keydown="onSplitKeydown($event, splitRect, float.id)"
           @dblclick="setSplitRatio(float.state, splitRect.splitId, 50)"
         ></div>
-        <div class="dock-float-resize" @pointerdown.prevent="startFloatResize($event, float.id)"></div>
+        <div
+          class="dock-float-resize"
+          role="separator"
+          tabindex="0"
+          aria-label="调整浮窗大小"
+          @pointerdown.prevent="startFloatResize($event, float.id)"
+          @keydown="onFloatResizeKeydown($event, float.id)"
+        ></div>
       </div>
     </template>
 
@@ -901,6 +924,16 @@ export default defineComponent({
       ids => { for (const id of ids) if (id) everActivated.add(id) },
       { immediate: true, flush: "sync" },
     )
+    //tab 被移出列表（关窗/外部换 items）时清掉激活标记：防止 everActivated 只增不减在长会话里累积，
+    //也让复用的 id 重新走"首激活才挂载"门控（否则 stale 标记会让新内容未激活就被挂载）
+    watch(
+      () => props.items.map(item => item.id),
+      ids => {
+        const alive = new Set(ids)
+        for (const id of [...everActivated]) if (!alive.has(id)) everActivated.delete(id)
+      },
+      { flush: "sync" },
+    )
 
     //组内 tab 条条目（浮窗内嵌树的组同理）。kind 要透传：使用方的 #tab 插槽
     //（如顶层客户端 tab 的在线/离线徽章）靠它分支渲染
@@ -1004,6 +1037,27 @@ export default defineComponent({
 
     // ↓ 分隔条拖拽改比例
 
+    /**分隔条当前比例（0-100，第一个面板占比）：由布局矩形反推，与 setSplitRatio 写入的 ratio 同源 */
+    function splitRatioOf(rect: SplitRect): number {
+      if (rect.direction === "horizontal") {
+        return rect.width ? ((rect.boundary - rect.left) / rect.width) * 100 : 50
+      }
+      return rect.height ? ((rect.boundary - rect.top) / rect.height) * 100 : 50
+    }
+
+    //键盘调比例：方向键沿分隔条轴向 ±2%（参照 SSplit 的 adjust 模式），setSplitRatio 内部 clamp 15-85
+    function onSplitKeydown(event: KeyboardEvent, rect: SplitRect, floatId?: string) {
+      const forward = rect.direction === "horizontal" ? event.key === "ArrowRight" : event.key === "ArrowDown"
+      const backward = rect.direction === "horizontal" ? event.key === "ArrowLeft" : event.key === "ArrowUp"
+      if (!forward && !backward) return
+      event.preventDefault()
+      //浮窗内的分隔条按浮窗内嵌树改比例，主区分隔条按主树（与 startSplitResize 同一套状态选择）
+      const state = floatId ? findFloatById(props.state, floatId)?.state ?? props.state : props.state
+      setSplitRatio(state, rect.splitId, splitRatioOf(rect) + (forward ? 2 : -2))
+    }
+
+    //活动分隔条拖拽的清理句柄：pointercancel/组件卸载时收尾，避免监听残留继续改比例
+    let activeSplitCleanup: (() => void) | null = null
     function startSplitResize(event: PointerEvent, rect: SplitRect, floatId?: string) {
       //浮窗内的分隔条按浮窗框架做百分比基准，主区分隔条按整个工作区
       const host = floatId ? floatElements.get(floatId) ?? root.value : root.value
@@ -1021,10 +1075,14 @@ export default defineComponent({
       const up = () => {
         window.removeEventListener("pointermove", move)
         window.removeEventListener("pointerup", up)
+        window.removeEventListener("pointercancel", up)
+        activeSplitCleanup = null
       }
+      activeSplitCleanup = up
       ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
       window.addEventListener("pointermove", move)
       window.addEventListener("pointerup", up)
+      window.addEventListener("pointercancel", up)
     }
 
     // ↓ tab 拖拽状态机（停靠 tab 条与浮窗 tab 条共用）
@@ -1364,6 +1422,17 @@ export default defineComponent({
       window.addEventListener("pointercancel", up)
     }
 
+    //浮窗缩放手柄的键盘版：方向键 ±8px 调宽/高（与拖拽同一条 updateFloatRect，内部 clamp 最小尺寸）
+    function onFloatResizeKeydown(event: KeyboardEvent, floatId: string) {
+      const dx = event.key === "ArrowRight" ? 8 : event.key === "ArrowLeft" ? -8 : 0
+      const dy = event.key === "ArrowDown" ? 8 : event.key === "ArrowUp" ? -8 : 0
+      if (!dx && !dy) return
+      event.preventDefault()
+      const float = findFloatById(props.state, floatId)
+      if (!float) return
+      updateFloatRect(props.state, floatId, { width: float.width + dx, height: float.height + dy })
+    }
+
     /**双击停靠 tab 标题 → 浮起；双击浮窗 tab → 回停靠；双击浮窗 tab 条空白 → 整窗回停靠*/
     function toggleFloat(id: string) {
       if (!props.floatEnabled || isMobile.value) return
@@ -1411,6 +1480,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       resetPointerDrag()
       removeFloatListeners()
+      activeSplitCleanup?.()
       groupElements.clear()
       floatElements.clear()
       floatGroupElements.clear()
@@ -1441,6 +1511,8 @@ export default defineComponent({
       floatFrameStyle,
       splitStyle,
       startSplitResize,
+      splitRatioOf,
+      onSplitKeydown,
       setGroupElement,
       setFloatElement,
       setFloatGroupElement,
@@ -1454,6 +1526,7 @@ export default defineComponent({
       floatDraggingId,
       startFloatDrag,
       startFloatResize,
+      onFloatResizeKeydown,
       unfloat,
       unfloatFloat,
       dropClassFor,
@@ -1539,6 +1612,7 @@ export default defineComponent({
   border-right: 2px solid var(--sui-fg-muted);
   border-bottom: 2px solid var(--sui-fg-muted);
 }
+.dock-float-resize:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: -2px; }
 .dock-content.float-content-dragging { opacity: 0.75; }
 .dock-resizer {
   position: absolute;
@@ -1554,6 +1628,9 @@ export default defineComponent({
   background: var(--sui-border);
 }
 .dock-resizer:hover::after { background: var(--sui-primary); }
+/*键盘聚焦（tabindex=0）时与 hover 同色，不用额外 outline——手柄本身只有 6px 宽*/
+.dock-resizer:focus-visible { outline: 0; }
+.dock-resizer:focus-visible::after { background: var(--sui-primary); box-shadow: 0 0 8px color-mix(in srgb, var(--sui-primary) 55%, transparent); }
 .dock-drop-indicator {
   position: absolute;
   z-index: 10;
