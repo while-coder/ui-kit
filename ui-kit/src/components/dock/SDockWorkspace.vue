@@ -812,7 +812,8 @@ export function restoreWorkspace(raw: unknown, options: RestoreOptions = {}): Wo
     //只有浮窗没有停靠组时树为 null：停靠区空置，全部内容在浮窗里
     root = groups.length ? leaf(groups[0]) : null
     for (let i = 1; i < groups.length; i++) {
-      root = split(i % 2 ? "horizontal" : "vertical", root, leaf(groups[i]), 50)
+      //循环仅在 groups.length >= 2 时执行，此刻 root 必为 leaf(...)：断言收窄（ternary 的 null 分支 TS 无法跨行排除）
+      root = split(i % 2 ? "horizontal" : "vertical", root!, leaf(groups[i]), 50)
     }
   }
 

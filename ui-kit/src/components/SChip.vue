@@ -3,12 +3,17 @@ import { useAttrs } from "vue"
 
 defineOptions({ name: "SChip", inheritAttrs: false })
 //色相走 type（对齐全库 type-* class 约定）
-const props = withDefaults(defineProps<{ type?: "default" | "warning"; clickable?: boolean }>(), { type: "default" })
+const props = withDefaults(defineProps<{
+  type?: "default" | "warning"
+  /** 兼容别名（原 sbot 侧词表）：variant 即 type（type 优先） */
+  variant?: "default" | "warning"
+  clickable?: boolean
+}>(), { type: "default" })
 const attrs = useAttrs()
 </script>
 
 <template>
-  <span v-bind="attrs" :class="['s-chip', `type-${props.type}`, { clickable: props.clickable }]"><slot /></span>
+  <span v-bind="attrs" :class="['s-chip', `type-${props.type ?? props.variant ?? 'default'}`, { clickable: props.clickable }]"><slot /></span>
 </template>
 
 <style scoped>

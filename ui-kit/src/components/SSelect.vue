@@ -9,6 +9,8 @@ export interface SelectOption {
   children?: SelectOption[]
   /** 分隔线项：不渲染成按钮，只画一条水平细线（用于把管理类动作和可选项隔开） */
   divider?: boolean
+  /** 危险动作项：SDropdown 渲染为 error 色（删除/关闭等破坏性操作），与全库 error 色相词表一致 */
+  error?: boolean
 }
 </script>
 

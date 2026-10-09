@@ -14,7 +14,11 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, useAttrs, wat
 defineOptions({ name: "SModal", inheritAttrs: false })
 const props = withDefaults(defineProps<{
   show?: boolean
+  /** 兼容别名（原 sbot 侧历史约定）：v-model:visible 亦可驱动，等价 show */
+  visible?: boolean
   title?: string
+  /** 标题下的副标题行：补充说明用途/上下文（原 BaseSheet 的 subtitle 能力） */
+  subtitle?: string
   preset?: string
   style?: any
   /** 卡片形态宽度：预设 sm/md/lg/xl（400/560/720/920px）或具体值；不传保持默认 560px */
@@ -22,17 +26,25 @@ const props = withDefaults(defineProps<{
   closable?: boolean
   maskClosable?: boolean
   closeOnEsc?: boolean
+  /** 兼容别名（原 sbot 侧）：maskClosable 的别名 */
+  closeOnOverlay?: boolean
+  /** 兼容别名（原 sbot 侧）：closeOnEsc 的别名 */
+  closeOnEscape?: boolean
   nested?: boolean
   draggable?: boolean
   resizable?: boolean
-}>(), { closable: true, maskClosable: true, closeOnEsc: true })
-const emit = defineEmits<{ "update:show": [value: any]; close: [] }>()
+  /** 填满高度（原 BaseSheet 的 fillHeight 能力）：内容不足时也撑到 min(760px, 视口-32px)，body 吃剩余空间 */
+  fillHeight?: boolean
+  /** body 是否可滚动（默认 true）；false 时 body 改为 flex 纵向布局，由内容自行管理滚动区 */
+  bodyScrollable?: boolean
+}>(), { closable: true, maskClosable: true, closeOnEsc: true, bodyScrollable: true })
+const emit = defineEmits<{ "update:show": [value: any]; "update:visible": [value: any]; close: [] }>()
 const attrs = useAttrs()
 
-//v-model 统一走 show（visible/closeOnOverlay/closeOnEscape 历史别名已移除，全库无使用）
-const isShown = computed(() => props.show)
-const canMaskClose = computed(() => props.maskClosable)
-const canEscClose = computed(() => props.closeOnEsc)
+//v-model 统一走 show；visible/closeOnOverlay/closeOnEscape 为原 sbot 侧历史别名（传了以别名为准）
+const isShown = computed(() => props.show || props.visible)
+const canMaskClose = computed(() => props.closeOnOverlay ?? props.maskClosable)
+const canEscClose = computed(() => props.closeOnEscape ?? props.closeOnEsc)
 
 const titleId = `s-modal-title-${++modalId}`
 const box = ref<HTMLElement | null>(null)
@@ -58,7 +70,9 @@ const boxStyle = computed(() => (canDrag.value ? [props.style, widthStyle.value,
 
 const widthStyle = computed(() => {
   if (props.width == null) return undefined
-  const preset = ({ sm: "400px", md: "560px", lg: "720px", xl: "920px" } as Record<string, string>)[props.width as string] ?? props.width
+  //数字直接补 px（number 拼进 min() 无单位是无效 CSS），预设名查表，其余原样（如 "60vw"）
+  const raw = typeof props.width === "number" ? `${props.width}px` : props.width
+  const preset = ({ sm: "400px", md: "560px", lg: "720px", xl: "920px" } as Record<string, string>)[raw] ?? raw
   return { width: `min(${preset}, calc(100vw - 32px))` }
 })
 
@@ -138,7 +152,7 @@ const stackToken: object = {}
 let stacked = false
 const pushStack = () => { if (!stacked) { stacked = true; modalStack.push(stackToken) } }
 const popStack = () => { if (stacked) { stacked = false; const index = modalStack.indexOf(stackToken); if (index >= 0) modalStack.splice(index, 1) } }
-const close = () => { emit("update:show", false); emit("close") }
+const close = () => { emit("update:show", false); emit("update:visible", false); emit("close") }
 //Tab 焦点圈围：收集 box 内可聚焦元素，过滤禁用与隐藏
 const getFocusable = () => {
   const el = box.value
@@ -232,14 +246,17 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <Transition name="s-modal">
       <div v-if="isShown" v-bind="attrs" :class="['s-modal-overlay', { nested }, attrs.class]" @mousedown="onMask">
-        <section v-if="preset === 'card' || title" ref="box" tabindex="-1"
-          :class="['s-modal-box', { dragging, resizable }]" :style="boxStyle"
+        <section v-if="preset === 'card' || title || subtitle" ref="box" tabindex="-1"
+          :class="['s-modal-box', { dragging, resizable, 'fill-height': fillHeight }]" :style="boxStyle"
           role="dialog" aria-modal="true" :aria-labelledby="title ? titleId : undefined">
           <header class="s-modal-header" :class="{ draggable: canDrag }" @pointerdown="startDrag">
-            <h2 :id="titleId">{{ title }}</h2>
+            <div class="s-modal-titles">
+              <h2 :id="titleId">{{ title }}</h2>
+              <p v-if="subtitle" class="s-modal-sub">{{ subtitle }}</p>
+            </div>
             <button v-if="closable" type="button" class="s-icon-close" aria-label="关闭" @click="close">×</button>
           </header>
-          <div class="s-modal-body"><slot /></div>
+          <div class="s-modal-body" :class="{ scrollable: bodyScrollable }"><slot /></div>
           <footer v-if="$slots.footer" class="s-modal-footer"><slot name="footer" /></footer>
         </section>
         <div v-else ref="box" tabindex="-1" class="s-modal-bare" :style="style" role="dialog" aria-modal="true">
@@ -257,11 +274,17 @@ onBeforeUnmount(() => {
 .s-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--sui-border); }
 .s-modal-header.draggable { cursor: grab; touch-action: none; user-select: none; }
 .s-modal-box.dragging .s-modal-header { cursor: grabbing; }
+.s-modal-titles { min-width: 0; }
 .s-modal-header h2 { min-width: 0; margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.s-modal-sub { margin: 2px 0 0; color: var(--sui-fg-muted); font-size: 12px; }
 .s-modal-header .s-icon-close { flex: 0 0 auto; }
-.s-modal-body { min-height: 0; padding: 16px 18px; overflow: auto; }
+.s-modal-body { min-height: 0; padding: 16px 18px; }
+.s-modal-body.scrollable { overflow: auto; overscroll-behavior: contain; }
+.s-modal-body:not(.scrollable) { display: flex; flex-direction: column; overflow: hidden; }
 .s-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--sui-border); }
 .s-modal-bare { max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); }
+/* fillHeight：高度撑到视口上限（内容不足也占满），body 吃剩余空间（与原 BaseSheet 的 fill-height 同口径） */
+.s-modal-box.fill-height { height: min(760px, calc(100vh - 32px)); height: min(760px, calc(100dvh - 32px)); }
 /*右下角原生拖角缩放；overflow:hidden 已满足 resize 生效条件，尺寸变化由 ResizeObserver 联动位置 clamp*/
 .s-modal-box.resizable { resize: both; min-width: 320px; min-height: 180px; max-width: calc(100vw - 32px); }
 .s-modal-enter-active, .s-modal-leave-active { transition: opacity .12s ease; }
@@ -271,6 +294,7 @@ onBeforeUnmount(() => {
 @media (max-width: 720px) {
   .s-modal-overlay { padding: 0; align-items: stretch; }
   .s-modal-box { width: 100% !important; max-height: 100dvh; border: 0; border-radius: 0; }
+  .s-modal-box.fill-height { height: 100dvh; }
   .s-modal-box.resizable { resize: none; }
 }
 </style>

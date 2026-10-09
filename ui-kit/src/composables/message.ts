@@ -2,8 +2,8 @@ import { reactive } from "vue"
 
 type ToastType = "info" | "success" | "warning" | "error"
 interface ToastItem { id: number; type: ToastType; text: string }
-// 确认弹窗可选项：confirmText/cancelText 定制按钮文案
-export interface ConfirmOptions { title: string; content: string; confirmText?: string; cancelText?: string }
+// 确认弹窗可选项：confirmText/cancelText 定制按钮文案，error 时确认钮显示为错误色
+export interface ConfirmOptions { title: string; content: string; confirmText?: string; cancelText?: string; error?: boolean }
 interface ConfirmState extends ConfirmOptions {
   visible: boolean
   onOk?: () => unknown
@@ -38,7 +38,8 @@ export const confirm = {
       normalized = options
       callback = typeof content === "function" ? content : onOk
     }
-    Object.assign(confirmState, { confirmText: undefined, cancelText: undefined, visible: true, onOk: callback }, normalized)
+    //error 每次重置：不随 options 传入时不能沿用上一次的错误色
+    Object.assign(confirmState, { confirmText: undefined, cancelText: undefined, error: undefined, visible: true, onOk: callback }, normalized)
     return new Promise(resolve => { confirmState.resolve = resolve })
   }
 }

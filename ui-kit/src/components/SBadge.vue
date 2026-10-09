@@ -5,10 +5,14 @@ defineOptions({ name: "SBadge" })
 //色相走 type（对齐全库 type-* class 约定）；尺寸词表：small/medium/large 三档（显式默认 medium）
 const props = withDefaults(defineProps<{
   type?: "neutral" | "info" | "warning" | "success" | "error" | "accent" | "tool"
+  /** 兼容别名（原 sbot 侧词表）：variant 即 type（type 优先） */
+  variant?: "neutral" | "info" | "warning" | "success" | "error" | "accent" | "tool"
   size?: string
   pill?: boolean
 }>(), { size: "medium" })
-const cls = computed(() => ["s-badge", `type-${props.type ?? "neutral"}`, `size-${props.size}`, { pill: props.pill }])
+//type/variant 二选一（type 优先）；尺寸词表唯一 small/medium/large，缩写（xs/sm）已废除，不在源侧归一
+const normalizedType = computed(() => props.type ?? props.variant ?? "neutral")
+const cls = computed(() => ["s-badge", `type-${normalizedType.value}`, `size-${props.size}`, { pill: props.pill }])
 </script>
 
 <template>

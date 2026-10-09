@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAttrs } from "vue"
+import { computed, useAttrs } from "vue"
 
 defineOptions({ name: "SButton", inheritAttrs: false })
 //色相走 type（default/primary/error…），尺寸词表唯一：small/medium/large（默认 medium；medium 即基础档，无需单独样式规则）
@@ -13,11 +13,16 @@ const props = withDefaults(defineProps<{
   block?: boolean
 }>(), { type: "default", size: "medium" })
 const attrs = useAttrs()
+
+//type 兼容别名（原 sbot 侧词表）：outline→default（默认即描边款）、type="text" 即 text 标志（色相词表统一 error，无 danger）
+//尺寸词表唯一：small/medium/large，缩写（sm/md）已废除，不在源侧归一
+const normalizedType = computed(() => props.type === "outline" ? "default" : props.type)
+const isText = computed(() => props.text || props.type === "text")
 </script>
 
 <template>
   <button v-bind="attrs" :type="(attrs as any).type ?? 'button'" :disabled="props.disabled || props.loading"
-    :class="['s-button', `type-${props.type}`, `size-${props.size}`, { text: props.text, tertiary: props.tertiary, block: props.block, loading: props.loading }]">
+    :class="['s-button', `type-${normalizedType}`, `size-${props.size}`, { text: isText, tertiary: props.tertiary, block: props.block, loading: props.loading }]">
     <span v-if="props.loading" class="s-spinner" aria-hidden="true" />
     <slot />
   </button>

@@ -39,7 +39,7 @@ const accept = async () => { const callback = confirmState.onOk; settle(true); a
     <p class="s-confirm-content">{{ confirmState.content }}</p>
     <template #footer>
       <SButton @click="settle(false)">{{ confirmState.cancelText ?? props.cancelText ?? "取消" }}</SButton>
-      <SButton type="primary" @click="accept">{{ confirmState.confirmText ?? props.confirmText ?? "确定" }}</SButton>
+      <SButton :type="confirmState.error ? 'error' : 'primary'" @click="accept">{{ confirmState.confirmText ?? props.confirmText ?? "确定" }}</SButton>
     </template>
   </SModal>
 </template>
