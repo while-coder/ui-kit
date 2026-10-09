@@ -26,6 +26,10 @@ const props = withDefaults(defineProps<{
   single?: boolean
   /** 配合 multiple：更矮的触发器与更小的 chip（原 SMultiSelect 的 compact） */
   compact?: boolean
+  /** 多选已选项保持单行，长标签省略 */
+  singleLine?: boolean
+  /** 多选最多显示的标签数量，其余显示 +N；未设置时全部显示 */
+  maxTagCount?: number
   /** 下拉展开方向，默认向下（原 SMultiSelect 的 placement） */
   placement?: "bottom" | "top"
   disabled?: boolean
@@ -51,6 +55,20 @@ const selectedValues = computed(() => {
 })
 const isSelected = (option: SelectOption) => selectedValues.value.some(value => String(value) === String(optionValue(option)))
 const selectedOptions = computed(() => props.options.filter(isSelected))
+const visibleSelectedOptions = computed(() => {
+  const limit = props.maxTagCount
+  return limit == null || !Number.isFinite(limit)
+    ? selectedOptions.value
+    : selectedOptions.value.slice(0, Math.max(0, Math.floor(limit)))
+})
+const hiddenSelectedCount = computed(() => selectedOptions.value.length - visibleSelectedOptions.value.length)
+const canClear = computed(() => props.clearable && selectedValues.value.length > 0 && !props.disabled)
+const clearSelection = () => {
+  open.value = false
+  emit("update:value", [])
+  emit("change", [])
+  trigger.value?.focus()
+}
 const selectedLabel = computed(() => {
   const labels = selectedOptions.value.map(optionLabel)
   return labels.length ? labels.join(", ") : (props.placeholder ?? "请选择")
@@ -145,7 +163,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="multiple" v-bind="attrs" ref="root" class="s-multi-select" :class="{ compact: props.compact, single: props.single, up: props.placement === 'top' }">
+  <div v-if="multiple" v-bind="attrs" ref="root" class="s-multi-select" :class="{ compact: props.compact, single: props.single, 'single-line': props.singleLine, clearable: canClear, up: props.placement === 'top' }">
     <button ref="trigger" type="button" class="s-select s-multi-select-trigger" :class="[`size-${props.size}`, { invalid: props.invalid }]"
       :disabled="disabled" aria-haspopup="listbox" :aria-expanded="open" @click="open = !open">
       <span class="s-multi-select-value" :title="props.single ? undefined : selectedLabel">
@@ -154,11 +172,16 @@ onBeforeUnmount(() => {
           <span v-else class="s-multi-select-placeholder">{{ placeholder ?? "请选择" }}</span>
         </template>
         <template v-else-if="selectedOptions.length">
-          <span v-for="option in selectedOptions" :key="String(optionValue(option))" class="s-multi-select-chip">{{ optionLabel(option) }}</span>
+          <span v-for="option in visibleSelectedOptions" :key="String(optionValue(option))" class="s-multi-select-chip">{{ optionLabel(option) }}</span>
+          <span v-if="hiddenSelectedCount" class="s-multi-select-count">+{{ hiddenSelectedCount }}</span>
         </template>
         <span v-else class="s-multi-select-placeholder">{{ placeholder ?? "请选择" }}</span>
       </span>
       <svg :class="['s-multi-select-arrow', { open }]" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+    </button>
+    <button v-if="canClear" type="button" class="s-multi-select-clear" title="清除选择" aria-label="清除选择"
+      @click.stop="clearSelection" @keydown.stop>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
     </button>
     <div v-if="open" class="s-multi-select-menu" role="listbox" :aria-multiselectable="!props.single" :aria-activedescendant="open ? optionId(activeIndex) : undefined">
       <div v-if="options.length === 0" class="s-multi-select-empty">—</div>
@@ -196,6 +219,16 @@ onBeforeUnmount(() => {
 .s-multi-select-placeholder { color: var(--sui-fg-disabled); font-size: 13px; line-height: 1.6; }
 .s-multi-select-arrow { width: 14px; height: 14px; flex: 0 0 auto; fill: none; stroke: var(--sui-fg-muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; transition: transform var(--sui-transition); }
 .s-multi-select-arrow.open { transform: rotate(180deg); }
+.s-multi-select.single-line .s-multi-select-value { flex-wrap: nowrap; align-items: center; overflow: hidden; }
+.s-multi-select.single-line .s-multi-select-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.s-multi-select-count { flex-shrink: 0; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--sui-primary) 14%, transparent); color: var(--sui-primary); font-size: 11px; line-height: 16px; }
+.s-multi-select.clearable .s-multi-select-value { margin-right: 22px; }
+.s-multi-select-clear { position: absolute; right: 26px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 22px; height: 22px; padding: 3px; border: 0; border-radius: 4px; background: transparent; color: var(--sui-fg-muted); cursor: pointer; }
+.s-multi-select-clear:hover { color: var(--sui-fg); background: var(--sui-bg-hover); }
+.s-multi-select-clear:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 1px; }
+.s-multi-select-clear svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.s-multi-select-option > span { min-width: 0; overflow-wrap: anywhere; }
+.s-multi-select-option input { flex-shrink: 0; }
 .s-multi-select-menu { position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: var(--sui-z-dropdown); display: grid; max-height: 220px; gap: 2px; padding: 5px; overflow-y: auto; border: 1px solid var(--sui-border); border-radius: var(--sui-radius-md); background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); }
 .s-multi-select.up .s-multi-select-menu { top: auto; bottom: calc(100% + 4px); }
 .s-multi-select-option { display: flex; min-height: 30px; align-items: center; gap: 8px; padding: 5px 7px; border-radius: var(--sui-radius-sm); color: var(--sui-fg-secondary); cursor: pointer; font-size: 13px; }
