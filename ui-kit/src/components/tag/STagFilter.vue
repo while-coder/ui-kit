@@ -56,10 +56,10 @@ const chipClass = (tag: string) => [
 .s-tag-filter-chip.size-small { padding: 1px 8px; font-size: 12px; }
 .s-tag-filter-chip.size-large { padding: 3px 10px; font-size: 14px; }
 .s-tag-filter-chip:hover { background: var(--sui-bg-hover); border-color: var(--sui-border-strong); color: var(--sui-fg); }
-.s-tag-filter-chip:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 2px; }
+.s-tag-filter-chip:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: -2px; }
 .s-tag-filter-chip.selected.variant-primary, .s-tag-filter-chip.selected.variant-primary:hover { background: var(--sui-primary); border-color: var(--sui-primary); color: var(--sui-on-primary); }
 .s-tag-filter-chip.selected.variant-default, .s-tag-filter-chip.selected.variant-default:hover { background: var(--sui-bg-active); border-color: var(--sui-border-strong); color: var(--sui-fg); }
 .s-tag-filter-clear { padding: 0 6px; border: 0; background: none; color: var(--sui-fg-disabled); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
 .s-tag-filter-clear:hover { color: var(--sui-error); }
-.s-tag-filter-clear:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 2px; }
+.s-tag-filter-clear:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: -2px; }
 </style>

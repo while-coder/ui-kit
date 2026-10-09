@@ -26,10 +26,6 @@ const props = withDefaults(defineProps<{
   closable?: boolean
   maskClosable?: boolean
   closeOnEsc?: boolean
-  /** 兼容别名（原 sbot 侧）：maskClosable 的别名 */
-  closeOnOverlay?: boolean
-  /** 兼容别名（原 sbot 侧）：closeOnEsc 的别名 */
-  closeOnEscape?: boolean
   nested?: boolean
   draggable?: boolean
   resizable?: boolean
@@ -41,10 +37,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ "update:show": [value: any]; "update:visible": [value: any]; close: [] }>()
 const attrs = useAttrs()
 
-//v-model 统一走 show；visible/closeOnOverlay/closeOnEscape 为原 sbot 侧历史别名（传了以别名为准）
+//v-model 统一走 show；visible 为原 sbot 侧历史别名（传了以别名为准）。关闭行为词表唯一：maskClosable/closeOnEsc（历史别名 closeOnOverlay/closeOnEscape 已废除）
 const isShown = computed(() => props.show || props.visible)
-const canMaskClose = computed(() => props.closeOnOverlay ?? props.maskClosable)
-const canEscClose = computed(() => props.closeOnEscape ?? props.closeOnEsc)
 
 const titleId = `s-modal-title-${++modalId}`
 const box = ref<HTMLElement | null>(null)
@@ -191,13 +185,13 @@ const onKey = (event: KeyboardEvent) => {
   if (!isShown.value) return
   if (modalStack[modalStack.length - 1] !== stackToken) return
   if (event.key === "Escape") {
-    if (!canEscClose.value) return
+    if (!props.closeOnEsc) return
     close()
     return
   }
   if (event.key === "Tab") trapTab(event)
 }
-const onMask = (event: MouseEvent) => { if (canMaskClose.value && event.target === event.currentTarget) close() }
+const onMask = (event: MouseEvent) => { if (props.maskClosable && event.target === event.currentTarget) close() }
 watch(isShown, show => {
   if (show) {
     if (!modalCounted) { modalCounted = true; openModalCount.value++ }

@@ -15,8 +15,9 @@
  *    - 工具类 .s-truncate / .s-mono（业务模板直接使用）
  */
 
-/* 键盘焦点环：所有可交互控件共用 */
-.s-button:focus-visible, .s-input:focus-visible, .s-select:focus-visible, .s-switch:focus-visible, .s-tab-button:focus-visible, .s-tree-label:focus-visible, .s-tree-toggle:focus-visible, .s-icon-close:focus-visible, .s-tag-close:focus-visible, .s-input-clear:focus-visible, .s-dropdown-item:focus-visible, .s-table-sort:focus-visible, .s-table-filter:focus-visible, .s-split-trigger:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 2px; }
+/* 键盘焦点环：所有可交互控件共用。
+   负 offset 画在控件自身边框内沿：不向外扩，就不会被滚动条悬浮层、相邻元素或滚动容器裁掉/盖住 */
+.s-button:focus-visible, .s-input:focus-visible, .s-select:focus-visible, .s-switch:focus-visible, .s-tab-button:focus-visible, .s-tree-label:focus-visible, .s-tree-toggle:focus-visible, .s-icon-close:focus-visible, .s-tag-close:focus-visible, .s-input-clear:focus-visible, .s-dropdown-item:focus-visible, .s-table-sort:focus-visible, .s-table-filter:focus-visible, .s-split-trigger:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: -2px; }
 
 /* loading 圈：SButton 与 SSpin 共用 */
 .s-spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sui-spin .7s linear infinite; }

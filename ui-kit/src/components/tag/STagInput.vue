@@ -175,5 +175,5 @@ defineExpose({ focus: focusInput })
 .s-tag-input-suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: var(--sui-z-dropdown); display: grid; max-height: 200px; gap: 2px; padding: 5px; overflow-y: auto; border: 1px solid var(--sui-border-strong); border-radius: var(--sui-radius-md); background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); }
 .s-tag-input-suggestion { padding: 5px 7px; border: 0; border-radius: var(--sui-radius-sm); background: none; color: var(--sui-fg-secondary); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
 .s-tag-input-suggestion:hover { background: var(--sui-bg-hover); }
-.s-tag-input-suggestion:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 2px; }
+.s-tag-input-suggestion:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: -2px; }
 </style>

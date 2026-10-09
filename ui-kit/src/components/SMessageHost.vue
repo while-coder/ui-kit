@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Teleport } from "vue"
 import { confirmState, loadingItems, toastItems } from "../composables/message"
 import SButton from "./button/SButton.vue"
 import SModal from "./SModal.vue"
