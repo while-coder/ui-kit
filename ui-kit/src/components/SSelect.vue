@@ -15,46 +15,57 @@ export interface SelectOption {
 </script>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useAttrs, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, ref, useAttrs, useId, watch } from "vue"
 
 defineOptions({ name: "SSelect", inheritAttrs: false })
 const props = withDefaults(defineProps<{
   value?: any
   options?: SelectOption[]
   multiple?: boolean
-  /** 配合 multiple：下拉单选形态，点选即收起，值以纯文本展示（原 SMultiSelect 的 single） */
+  /** 配合 multiple：单选菜单，值仍以数组回写，兼容原有调用。 */
   single?: boolean
-  /** 配合 multiple：更矮的触发器与更小的 chip（原 SMultiSelect 的 compact） */
   compact?: boolean
-  /** 多选已选项保持单行，长标签省略 */
   singleLine?: boolean
-  /** 多选最多显示的标签数量，其余显示 +N；未设置时全部显示 */
   maxTagCount?: number
-  /** 下拉展开方向，默认向下（原 SMultiSelect 的 placement） */
   placement?: "bottom" | "top"
+  /** 菜单宽度；默认跟随触发器，最小 150px，并限制在视口内。 */
+  menuWidth?: number
   disabled?: boolean
   placeholder?: string
   clearable?: boolean
-  /** 尺寸词表：small/medium/large 三档（显式默认 medium，即 shared.css 的 32px 基础档） */
   size?: string
   invalid?: boolean
 }>(), { options: () => [], size: "medium" })
-const emit = defineEmits<{ "update:value": [value: any]; change: [value: any] }>()
+const emit = defineEmits<{ "update:value": [value: any]; change: [value: any]; select: [value: any] }>()
 const attrs = useAttrs()
-
+const rootAttrs = () => {
+  return props.multiple ? attrs : { class: attrs.class, style: attrs.style }
+}
+const triggerAttrs = () => {
+  if (props.multiple) return Object.fromEntries(Object.entries(attrs).filter(([key]) => key.startsWith("aria-") || key === "title"))
+  const result = { ...attrs }
+  for (const key of ["class", "style", "name", "required"]) delete result[key]
+  return result
+}
 const root = ref<HTMLElement | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
+const menu = ref<HTMLElement | null>(null)
 const open = ref(false)
-
+const menuId = `s-select-${useId()}`
+const menuStyle = ref<Record<string, string>>({ visibility: "hidden" })
+const multi = computed(() => props.multiple && !props.single)
+const required = computed(() => attrs.required != null && attrs.required !== false)
 const optionValue = (option: SelectOption): any => option.value ?? option.key ?? ""
 const optionLabel = (option: SelectOption) => typeof option.label === "function" ? String(optionValue(option)) : (option.label ?? "")
+const options = computed(() => props.options.filter(option => option.show !== false && !option.divider))
 const selectedValues = computed(() => {
+  if (!props.multiple) return props.value == null || props.value === "" ? [] : [props.value]
   if (Array.isArray(props.value)) return props.value
   if (typeof props.value === "string") return props.value.split(",").map(value => value.trim()).filter(Boolean)
   return props.value == null || props.value === "" ? [] : [props.value]
 })
 const isSelected = (option: SelectOption) => selectedValues.value.some(value => String(value) === String(optionValue(option)))
-const selectedOptions = computed(() => props.options.filter(isSelected))
+const selectedOptions = computed(() => options.value.filter(isSelected))
 const visibleSelectedOptions = computed(() => {
   const limit = props.maxTagCount
   return limit == null || !Number.isFinite(limit)
@@ -63,111 +74,149 @@ const visibleSelectedOptions = computed(() => {
 })
 const hiddenSelectedCount = computed(() => selectedOptions.value.length - visibleSelectedOptions.value.length)
 const canClear = computed(() => props.clearable && selectedValues.value.length > 0 && !props.disabled)
-const clearSelection = () => {
-  open.value = false
-  emit("update:value", [])
-  emit("change", [])
-  trigger.value?.focus()
-}
-const selectedLabel = computed(() => {
-  const labels = selectedOptions.value.map(optionLabel)
-  return labels.length ? labels.join(", ") : (props.placeholder ?? "请选择")
-})
-//下拉单选：点选后收起；已选中再点不动
-const pickSingle = (option: SelectOption) => {
-  open.value = false
-  if (isSelected(option)) return
-  const raw = optionValue(option)
-  emit("update:value", [raw])
-  emit("change", [raw])
-}
-const updateOption = (option: SelectOption, checked: boolean) => {
-  const raw = optionValue(option)
-  const next = selectedValues.value.filter(value => String(value) !== String(raw))
-  if (checked) next.push(raw)
-  emit("update:value", next)
-  emit("change", next)
-}
-const onNativeChange = (event: Event) => {
-  const element = event.target as HTMLSelectElement
-  const raw = element.value
-  const value = props.options.find(option => String(optionValue(option)) === raw)?.value ?? raw
+const selectedLabel = computed(() => selectedOptions.value.map(optionLabel).join(", ") || (props.placeholder ?? "请选择"))
+
+function update(value: any) {
   emit("update:value", value)
   emit("change", value)
 }
-const outside = (event: PointerEvent) => {
-  if (open.value && !root.value?.contains(event.target as Node)) open.value = false
+function closeMenu(restoreFocus = false) {
+  open.value = false
+  if (restoreFocus) trigger.value?.focus({ preventScroll: true })
 }
-//listbox 键盘导航：菜单展开期间记录激活项索引，通过 aria-activedescendant + .active 类高亮
-const activeIndex = ref(-1)
-const optionId = (index: number) => index >= 0 ? `s-select-opt-${index}` : undefined
-const isNavigable = (option: SelectOption | undefined) => !!option && !option.disabled && !option.divider
-//打开时的默认激活项：已选项位置，否则第一个可选项，都没有则 0
-const initialActiveIndex = () => {
-  const total = props.options.length
-  if (!total) return -1
-  let index = props.options.findIndex(option => isNavigable(option) && isSelected(option))
-  if (index < 0) index = props.options.findIndex(isNavigable)
-  return index < 0 ? 0 : index
+function clearSelection() {
+  update(props.multiple ? [] : undefined)
+  closeMenu(true)
 }
-//上下移动激活项（循环 wrap），跳过禁用与分隔线
-const moveActive = (step: number) => {
-  const total = props.options.length
-  if (!total) return
-  let index = activeIndex.value < 0 ? 0 : activeIndex.value
-  for (let i = 0; i < total; i++) {
-    index = (index + step + total) % total
-    if (isNavigable(props.options[index])) {
-      activeIndex.value = index
-      return
-    }
+function pick(option: SelectOption) {
+  if (props.disabled || option.disabled) return
+  const value = optionValue(option)
+  if (multi.value) {
+    const next = selectedValues.value.filter(item => String(item) !== String(value))
+    if (!isSelected(option)) next.push(value)
+    update(next)
+  } else {
+    closeMenu(true)
+    if (!isSelected(option)) update(props.multiple ? [value] : value)
   }
+  // select 每次点选都触发，便于“自定义区间”等已选项再次打开编辑器。
+  emit("select", value)
 }
-const keydown = (event: KeyboardEvent) => {
-  if (!open.value) return
-  //Escape 优先级最高：关闭并把焦点还给触发器
-  if (event.key === "Escape") {
-    open.value = false
-    trigger.value?.focus()
+
+// 固定定位 + Teleport：菜单脱离表单/弹窗滚动容器，始终锚定触发器。
+function positionMenu() {
+  const rect = trigger.value?.getBoundingClientRect()
+  const element = menu.value
+  if (!rect || !element) return
+  if (rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth) {
+    closeMenu()
     return
   }
+  const edge = 8
+  const gap = 6
+  const width = Math.min(props.menuWidth ?? Math.max(150, rect.width), window.innerWidth - edge * 2)
+  const below = Math.max(0, window.innerHeight - rect.bottom - gap - edge)
+  const above = Math.max(0, rect.top - gap - edge)
+  const height = Math.min(320, element.scrollHeight + element.offsetHeight - element.clientHeight)
+  const up = props.placement === "top"
+    ? above >= height || above >= below
+    : below < height && above > below
+  const maxHeight = Math.min(320, up ? above : below)
+  const top = up ? Math.max(edge, rect.top - gap - Math.min(height, maxHeight)) : rect.bottom + gap
+  const left = Math.max(edge, Math.min(rect.left, window.innerWidth - width - edge))
+  menuStyle.value = { left: `${left}px`, top: `${top}px`, width: `${width}px`, maxHeight: `${maxHeight}px` }
+}
+const menuButtons = () => Array.from(menu.value?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])
+async function showMenu() {
+  if (props.disabled || open.value) return
+  menuStyle.value = { visibility: "hidden" }
+  open.value = true
+  await nextTick()
+  if (!open.value) return
+  positionMenu()
+  await nextTick()
+  if (!open.value) return
+  const selected = menu.value?.querySelector<HTMLButtonElement>("button[aria-selected='true']:not(:disabled)")
+  const target = selected ?? menuButtons()[0]
+  target?.focus({ preventScroll: true })
+  target?.scrollIntoView({ block: "nearest" })
+}
+function toggleMenu() {
+  if (open.value) closeMenu(true)
+  else void showMenu()
+}
+function triggerKeydown(event: KeyboardEvent) {
   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     event.preventDefault()
-    moveActive(event.key === "ArrowDown" ? 1 : -1)
-    return
-  }
-  if (event.key === "Enter" || event.key === " ") {
-    const option = props.options[activeIndex.value]
-    if (!isNavigable(option)) return
-    //阻止默认行为：焦点在触发器按钮上时避免 Enter/Space 再次触发 click 开合
-    event.preventDefault()
-    //single 形态点选即关；多选形态切换当前高亮项
-    if (props.single) pickSingle(option)
-    else updateOption(option, !isSelected(option))
+    event.stopPropagation()
+    void showMenu()
   }
 }
-watch(open, value => {
-  if (value) {
-    activeIndex.value = initialActiveIndex()
-    document.addEventListener("pointerdown", outside)
-    document.addEventListener("keydown", keydown)
-  } else {
-    document.removeEventListener("pointerdown", outside)
-    document.removeEventListener("keydown", keydown)
+function menuKeydown(event: KeyboardEvent) {
+  if (event.key === "Tab") {
+    // 把焦点还给触发器，默认 Tab 继续走表单顺序，弹窗也可继续圈围焦点。
+    closeMenu(true)
+    return
+  }
+  event.stopPropagation()
+  if (event.key === "Escape") {
+    event.preventDefault()
+    closeMenu(true)
+    return
+  }
+  const buttons = menuButtons()
+  const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
+  const index = event.key === "ArrowDown" ? Math.min(buttons.length - 1, current + 1)
+    : event.key === "ArrowUp" ? Math.max(0, current - 1)
+    : event.key === "Home" ? 0
+    : event.key === "End" ? buttons.length - 1 : -1
+  if (index < 0) return
+  event.preventDefault()
+  buttons[index]?.focus({ preventScroll: true })
+  buttons[index]?.scrollIntoView({ block: "nearest" })
+}
+function outside(event: PointerEvent) {
+  const target = event.target as Node
+  if (!root.value?.contains(target) && !menu.value?.contains(target)) closeMenu()
+}
+function viewportChange(event: Event) {
+  if (event.target instanceof Node && menu.value?.contains(event.target)) return
+  positionMenu()
+}
+let observer: ResizeObserver | undefined
+function stopListening() {
+  document.removeEventListener("pointerdown", outside)
+  window.removeEventListener("resize", viewportChange)
+  window.removeEventListener("scroll", viewportChange, true)
+  observer?.disconnect()
+  observer = undefined
+}
+watch(open, async value => {
+  stopListening()
+  if (!value) return
+  document.addEventListener("pointerdown", outside)
+  window.addEventListener("resize", viewportChange)
+  window.addEventListener("scroll", viewportChange, true)
+  await nextTick()
+  if (open.value && trigger.value && typeof ResizeObserver !== "undefined") {
+    observer = new ResizeObserver(positionMenu)
+    observer.observe(trigger.value)
+    if (menu.value) observer.observe(menu.value)
   }
 })
-onBeforeUnmount(() => {
-  document.removeEventListener("pointerdown", outside)
-  document.removeEventListener("keydown", keydown)
-})
+watch(() => props.disabled, disabled => { if (disabled) closeMenu() })
+watch(() => props.options, async () => { if (open.value) { await nextTick(); positionMenu() } }, { deep: true })
+onBeforeUnmount(stopListening)
 </script>
 
 <template>
-  <div v-if="multiple" v-bind="attrs" ref="root" class="s-multi-select" :class="{ compact: props.compact, single: props.single, 'single-line': props.singleLine, clearable: canClear, up: props.placement === 'top' }">
-    <button ref="trigger" type="button" class="s-select s-multi-select-trigger" :class="[`size-${props.size}`, { invalid: props.invalid }]"
-      :disabled="disabled" aria-haspopup="listbox" :aria-expanded="open" @click="open = !open">
-      <span class="s-multi-select-value" :title="props.single ? undefined : selectedLabel">
-        <template v-if="props.single">
+  <div v-bind="rootAttrs()" ref="root" :class="[multiple ? 's-multi-select' : 's-single-select', { compact, single, 'single-line': singleLine, clearable: canClear }]">
+    <button v-bind="triggerAttrs()" ref="trigger" type="button" class="s-select"
+      :class="[multiple ? 's-multi-select-trigger' : 's-single-select-trigger', `size-${size}`, { invalid }]"
+      :disabled="disabled" aria-haspopup="listbox" :aria-expanded="open" :aria-controls="open ? menuId : undefined"
+      :aria-invalid="invalid || undefined" @click="toggleMenu" @keydown="triggerKeydown">
+      <span class="s-multi-select-value" :title="selectedLabel">
+        <template v-if="!multi">
           <span v-if="selectedOptions.length" class="s-multi-select-single-value">{{ selectedLabel }}</span>
           <span v-else class="s-multi-select-placeholder">{{ placeholder ?? "请选择" }}</span>
         </template>
@@ -179,64 +228,65 @@ onBeforeUnmount(() => {
       </span>
       <svg :class="['s-multi-select-arrow', { open }]" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
     </button>
-    <button v-if="canClear" type="button" class="s-multi-select-clear" title="清除选择" aria-label="清除选择"
+    <button v-if="canClear" type="button" class="s-multi-select-clear" title="清除选择" aria-label="清除选择" :disabled="disabled"
       @click.stop="clearSelection" @keydown.stop>
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
     </button>
-    <div v-if="open" class="s-multi-select-menu" role="listbox" :aria-multiselectable="!props.single" :aria-activedescendant="open ? optionId(activeIndex) : undefined">
-      <div v-if="options.length === 0" class="s-multi-select-empty">—</div>
-      <label v-for="(option, index) in options" :key="index" :id="optionId(index)"
-        :class="['s-multi-select-option', { disabled: option.disabled, checked: props.single && isSelected(option), active: index === activeIndex }]"
-        role="option" :aria-selected="isSelected(option)" @click="props.single ? pickSingle(option) : undefined">
-        <input v-if="!props.single" type="checkbox" :checked="isSelected(option)" :disabled="option.disabled"
-          @change="updateOption(option, ($event.target as HTMLInputElement).checked)" />
-        <span>{{ optionLabel(option) }}</span>
-      </label>
-    </div>
+    <!-- 保留 name / required 的原生表单提交与约束校验；交互入口只有自绘触发器。 -->
+    <select v-if="attrs.name != null || required" class="s-select-native" tabindex="-1" aria-hidden="true"
+      :name="attrs.name as string" :required="required" :disabled="disabled" :multiple="multiple"
+      :value="multiple ? selectedValues : value ?? ''" @focus="trigger?.focus({ preventScroll: true })">
+      <option v-if="!multiple" value="" disabled>{{ placeholder ?? "请选择" }}</option>
+      <option v-for="option in options" :key="String(optionValue(option))" :value="optionValue(option)" :disabled="option.disabled">{{ optionLabel(option) }}</option>
+    </select>
+    <Teleport to="body">
+      <div v-if="open" :id="menuId" ref="menu" class="s-select-menu" role="listbox" :aria-multiselectable="multi || undefined"
+        :aria-label="(attrs['aria-label'] as string) || selectedLabel" :style="menuStyle" @keydown="menuKeydown">
+        <div v-if="!options.length" class="s-multi-select-empty">—</div>
+        <button v-for="(option, index) in options" :key="index" type="button" role="option" class="s-select-option"
+          :class="{ checked: isSelected(option) }" :disabled="option.disabled" :aria-selected="isSelected(option)" @click="pick(option)">
+          <svg class="s-select-check" :class="{ hidden: !isSelected(option) }" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
+          <span>{{ optionLabel(option) }}</span>
+        </button>
+      </div>
+    </Teleport>
   </div>
-  <select v-else v-bind="attrs" class="s-select" :class="[`size-${props.size}`, { invalid: props.invalid }]" :value="(value as any)"
-    :disabled="disabled" @change="onNativeChange">
-    <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
-    <option v-for="option in options" :key="optionValue(option)" :value="optionValue(option)" :disabled="option.disabled">{{ optionLabel(option) }}</option>
-  </select>
 </template>
 
 <style scoped>
 .s-select.invalid { border-color: var(--sui-error); }
-/* size-medium 即 shared.css 的 32px 基础档；size-small/size-large 为变体档 */
-.s-select.size-small { min-height: 26px; padding: 2px 8px; font-size: 12px; }
-.s-select.size-large { min-height: 38px; padding: 6px 10px; font-size: 14px; }
-.s-multi-select-trigger.size-small { min-height: 26px; padding: 3px 6px 3px 8px; font-size: 12px; }
-.s-multi-select-trigger.size-large { min-height: 38px; padding: 5px 8px 5px 10px; font-size: 14px; }
-.s-multi-select { position: relative; width: 100%; min-width: 0; }
-.s-multi-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; }
+.s-single-select, .s-multi-select { position: relative; width: 100%; min-width: 0; }
+.s-single-select-trigger, .s-multi-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; }
+.s-select.size-small { min-height: 26px; padding: 3px 6px 3px 8px; font-size: 12px; }
+.s-select.size-large { min-height: 38px; padding: 5px 8px 5px 10px; font-size: 14px; }
 .s-multi-select.compact .s-multi-select-trigger { min-height: 26px; padding: 3px 6px 3px 8px; }
 .s-multi-select-value { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; gap: 4px; }
-.s-multi-select.single .s-multi-select-value { flex-wrap: nowrap; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s-single-select .s-multi-select-value, .s-multi-select.single .s-multi-select-value { flex-wrap: nowrap; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .s-multi-select-chip { padding: 1px 7px; border-radius: var(--sui-radius-pill); background: var(--sui-primary); color: var(--sui-on-primary); font-size: 12px; white-space: nowrap; }
 .s-multi-select.compact .s-multi-select-chip { padding: 0 6px; font-size: 11px; }
 .s-multi-select-single-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.s-multi-select-placeholder { color: var(--sui-fg-disabled); font-size: 13px; line-height: 1.6; }
+.s-multi-select-placeholder { color: var(--sui-fg-disabled); font-size: inherit; line-height: 1.6; }
 .s-multi-select-arrow { width: 14px; height: 14px; flex: 0 0 auto; fill: none; stroke: var(--sui-fg-muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; transition: transform var(--sui-transition); }
 .s-multi-select-arrow.open { transform: rotate(180deg); }
 .s-multi-select.single-line .s-multi-select-value { flex-wrap: nowrap; align-items: center; overflow: hidden; }
 .s-multi-select.single-line .s-multi-select-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .s-multi-select-count { flex-shrink: 0; padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--sui-primary) 14%, transparent); color: var(--sui-primary); font-size: 11px; line-height: 16px; }
-.s-multi-select.clearable .s-multi-select-value { margin-right: 22px; }
+.clearable .s-multi-select-value { margin-right: 22px; }
 .s-multi-select-clear { position: absolute; right: 26px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 22px; height: 22px; padding: 3px; border: 0; border-radius: 4px; background: transparent; color: var(--sui-fg-muted); cursor: pointer; }
 .s-multi-select-clear:hover { color: var(--sui-fg); background: var(--sui-bg-hover); }
 .s-multi-select-clear:focus-visible { outline: 2px solid var(--sui-primary); outline-offset: 1px; }
 .s-multi-select-clear svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
-.s-multi-select-option > span { min-width: 0; overflow-wrap: anywhere; }
-.s-multi-select-option input { flex-shrink: 0; }
-.s-multi-select-menu { position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: var(--sui-z-dropdown); display: grid; max-height: 220px; gap: 2px; padding: 5px; overflow-y: auto; border: 1px solid var(--sui-border); border-radius: var(--sui-radius-md); background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); }
-.s-multi-select.up .s-multi-select-menu { top: auto; bottom: calc(100% + 4px); }
-.s-multi-select-option { display: flex; min-height: 30px; align-items: center; gap: 8px; padding: 5px 7px; border-radius: var(--sui-radius-sm); color: var(--sui-fg-secondary); cursor: pointer; font-size: 13px; }
-.s-multi-select-option:hover { background: var(--sui-bg-hover); }
-/*键盘导航高亮：与 checked 共存时放在前面，让 checked 的底色优先生效*/
-.s-multi-select-option.active { background: var(--sui-bg-hover); }
-.s-multi-select-option.checked { background: var(--sui-bg-active); font-weight: 500; }
-.s-multi-select-option.disabled { cursor: not-allowed; opacity: .5; }
-.s-multi-select-option input { accent-color: var(--sui-primary); }
+.s-select-native { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; pointer-events: none; }
+.s-select-menu { position: fixed; z-index: var(--sui-z-dropdown); display: grid; gap: 2px; padding: 5px; overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; border: 1px solid var(--sui-border); border-radius: var(--sui-radius-md); background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); color: var(--sui-fg); font: inherit; }
+.s-select-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 0; min-height: 34px; padding: 5px 9px; border: 0; border-radius: var(--sui-radius-sm); color: var(--sui-fg-secondary); background: transparent; text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
+.s-select-option:hover, .s-select-option:focus-visible { color: var(--sui-fg); background: var(--sui-bg-hover); outline: 0; }
+.s-select-option.checked { color: var(--sui-fg); background: var(--sui-bg-active); }
+.s-select-option:disabled { cursor: not-allowed; opacity: .5; }
+.s-select-option > span { min-width: 0; overflow-wrap: anywhere; }
+.s-select-check { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.s-select-check.hidden { visibility: hidden; }
 .s-multi-select-empty { padding: 8px 12px; color: var(--sui-fg-disabled); font-size: 13px; }
+@media (max-width: 640px) {
+  .s-select-option { min-height: 36px; font-size: 13px; }
+}
 </style>
