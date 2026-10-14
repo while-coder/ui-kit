@@ -6,6 +6,7 @@ export interface SelectOption {
   key?: string | number
   disabled?: boolean
   show?: boolean
+  /** 子菜单；父节点只展开，叶子项才触发选择。 */
   children?: SelectOption[]
   /** 分隔线项：不渲染成按钮，只画一条水平细线（用于把管理类动作和可选项隔开） */
   divider?: boolean
@@ -16,6 +17,7 @@ export interface SelectOption {
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useAttrs, useId, watch } from "vue"
+import SCascadeMenu from "./SCascadeMenu.vue"
 
 defineOptions({ name: "SSelect", inheritAttrs: false })
 const props = withDefaults(defineProps<{
@@ -50,6 +52,9 @@ const triggerAttrs = () => {
 const root = ref<HTMLElement | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
+const cascadeMenu = ref<InstanceType<typeof SCascadeMenu> | null>(null)
+const menuElement = () => menu.value ?? cascadeMenu.value?.root
+const menuContains = (target: Node) => menu.value?.contains(target) || cascadeMenu.value?.contains(target)
 const open = ref(false)
 const menuId = `s-select-${useId()}`
 const menuStyle = ref<Record<string, string>>({ visibility: "hidden" })
@@ -58,6 +63,15 @@ const required = computed(() => attrs.required != null && attrs.required !== fal
 const optionValue = (option: SelectOption): any => option.value ?? option.key ?? ""
 const optionLabel = (option: SelectOption) => typeof option.label === "function" ? String(optionValue(option)) : (option.label ?? "")
 const options = computed(() => props.options.filter(option => option.show !== false && !option.divider))
+const cascading = computed(() => options.value.some(option => option.children?.length))
+function collectLeaves(items: SelectOption[], disabled = false): SelectOption[] {
+  return items.filter(option => option.show !== false && !option.divider).flatMap(option => {
+    const unavailable = disabled || option.disabled
+    return option.children?.length ? collectLeaves(option.children, unavailable)
+      : [{ ...option, disabled: unavailable }]
+  })
+}
+const leafOptions = computed(() => collectLeaves(options.value))
 const selectedValues = computed(() => {
   if (!props.multiple) return props.value == null || props.value === "" ? [] : [props.value]
   if (Array.isArray(props.value)) return props.value
@@ -65,7 +79,7 @@ const selectedValues = computed(() => {
   return props.value == null || props.value === "" ? [] : [props.value]
 })
 const isSelected = (option: SelectOption) => selectedValues.value.some(value => String(value) === String(optionValue(option)))
-const selectedOptions = computed(() => options.value.filter(isSelected))
+const selectedOptions = computed(() => leafOptions.value.filter(isSelected))
 const visibleSelectedOptions = computed(() => {
   const limit = props.maxTagCount
   return limit == null || !Number.isFinite(limit)
@@ -106,7 +120,7 @@ function pick(option: SelectOption) {
 // 固定定位 + Teleport：菜单脱离表单/弹窗滚动容器，始终锚定触发器。
 function positionMenu() {
   const rect = trigger.value?.getBoundingClientRect()
-  const element = menu.value
+  const element = menuElement()
   if (!rect || !element) return
   if (rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth) {
     closeMenu()
@@ -136,6 +150,7 @@ async function showMenu() {
   positionMenu()
   await nextTick()
   if (!open.value) return
+  if (cascadeMenu.value) { cascadeMenu.value.focusFirst(true); return }
   const selected = menu.value?.querySelector<HTMLButtonElement>("button[aria-selected='true']:not(:disabled)")
   const target = selected ?? menuButtons()[0]
   target?.focus({ preventScroll: true })
@@ -177,10 +192,10 @@ function menuKeydown(event: KeyboardEvent) {
 }
 function outside(event: PointerEvent) {
   const target = event.target as Node
-  if (!root.value?.contains(target) && !menu.value?.contains(target)) closeMenu()
+  if (!root.value?.contains(target) && !menuContains(target)) closeMenu()
 }
 function viewportChange(event: Event) {
-  if (event.target instanceof Node && menu.value?.contains(event.target)) return
+  if (event.target instanceof Node && menuContains(event.target)) return
   positionMenu()
 }
 let observer: ResizeObserver | undefined
@@ -201,7 +216,8 @@ watch(open, async value => {
   if (open.value && trigger.value && typeof ResizeObserver !== "undefined") {
     observer = new ResizeObserver(positionMenu)
     observer.observe(trigger.value)
-    if (menu.value) observer.observe(menu.value)
+    const element = menuElement()
+    if (element) observer.observe(element)
   }
 })
 watch(() => props.disabled, disabled => { if (disabled) closeMenu() })
@@ -213,7 +229,7 @@ onBeforeUnmount(stopListening)
   <div v-bind="rootAttrs()" ref="root" :class="[multiple ? 's-multi-select' : 's-single-select', { compact, single, 'single-line': singleLine, clearable: canClear }]">
     <button v-bind="triggerAttrs()" ref="trigger" type="button" class="s-select"
       :class="[multiple ? 's-multi-select-trigger' : 's-single-select-trigger', `size-${size}`, { invalid }]"
-      :disabled="disabled" aria-haspopup="listbox" :aria-expanded="open" :aria-controls="open ? menuId : undefined"
+      :disabled="disabled" :aria-haspopup="cascading ? 'menu' : 'listbox'" :aria-expanded="open" :aria-controls="open ? menuId : undefined"
       :aria-invalid="invalid || undefined" @click="toggleMenu" @keydown="triggerKeydown">
       <span class="s-multi-select-value" :title="selectedLabel">
         <template v-if="!multi">
@@ -237,10 +253,13 @@ onBeforeUnmount(stopListening)
       :name="attrs.name as string" :required="required" :disabled="disabled" :multiple="multiple"
       :value="multiple ? selectedValues : value ?? ''" @focus="trigger?.focus({ preventScroll: true })">
       <option v-if="!multiple" value="" disabled>{{ placeholder ?? "请选择" }}</option>
-      <option v-for="option in options" :key="String(optionValue(option))" :value="optionValue(option)" :disabled="option.disabled">{{ optionLabel(option) }}</option>
+      <option v-for="option in leafOptions" :key="String(optionValue(option))" :value="optionValue(option)" :disabled="option.disabled">{{ optionLabel(option) }}</option>
     </select>
+    <SCascadeMenu v-if="open && cascading" :id="menuId" ref="cascadeMenu" :show="open"
+      :options="options" :root-style="menuStyle" :selected="isSelected" :multiple="!!multi"
+      :label="(attrs['aria-label'] as string) || selectedLabel" @select="pick" @close="closeMenu" />
     <Teleport to="body">
-      <div v-if="open" :id="menuId" ref="menu" class="s-select-menu" role="listbox" :aria-multiselectable="multi || undefined"
+      <div v-if="open && !cascading" :id="menuId" ref="menu" class="s-select-menu" role="listbox" :aria-multiselectable="multi || undefined"
         :aria-label="(attrs['aria-label'] as string) || selectedLabel" :style="menuStyle" @keydown="menuKeydown">
         <div v-if="!options.length" class="s-multi-select-empty">—</div>
         <button v-for="(option, index) in options" :key="index" type="button" role="option" class="s-select-option"
