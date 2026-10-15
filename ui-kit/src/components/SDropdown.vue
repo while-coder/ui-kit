@@ -16,6 +16,6 @@ const rootStyle = computed(() => ({ left: `${props.x ?? 0}px`, top: `${props.y ?
 </script>
 
 <template>
-  <SCascadeMenu :show="!!show" :options="options" :root-style="rootStyle"
+  <SCascadeMenu :show="!!show" :options="options" :root-style="rootStyle" root-class="s-dropdown"
     @close="props.onClickoutside?.()" @select="option => emit('select', option.key ?? option.value)" />
 </template>

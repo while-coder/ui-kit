@@ -8,6 +8,7 @@ const props = defineProps<{
   rootStyle: CSSProperties
   label?: string
   id?: string
+  rootClass?: string
   selected?: (option: SelectOption) => boolean
   multiple?: boolean
 }>()
@@ -42,6 +43,14 @@ function setElement(level: number, element: any) {
 function cancelHover() {
   clearTimeout(hoverTimer)
   hoverTimer = undefined
+}
+function panelScroll(level: number) {
+  cancelHover()
+  branches.value = branches.value.slice(0, level)
+}
+function panelLabel(level: number) {
+  const label = level === 0 ? props.label : branches.value[level - 1]?.option.label
+  return typeof label === "string" ? label : undefined
 }
 function close(restoreFocus = false) {
   cancelHover()
@@ -162,7 +171,13 @@ watch(() => props.show, show => {
   window.addEventListener("resize", viewportChange)
   window.addEventListener("scroll", viewportChange, true)
 }, { immediate: true })
-watch(() => props.rootStyle, () => { if (props.show) void positionRoot() }, { deep: true })
+watch(() => props.rootStyle, () => {
+  if (!props.show) return
+  const active = document.activeElement
+  if (active instanceof HTMLElement && active !== document.body && !contains(active)) opener = active
+  branches.value = []
+  void positionRoot()
+}, { deep: true })
 watch(() => props.options, () => {
   branches.value = []
   if (props.show) void positionRoot()
@@ -175,8 +190,8 @@ defineExpose({ root, contains, focusFirst })
   <Teleport to="body">
     <template v-if="show">
       <div v-for="(panel, level) in panels" :key="level" :ref="element => setElement(level, element)" :id="level === 0 ? id : undefined"
-        class="s-cascade-menu" role="menu" :aria-label="level === 0 ? label : typeof branches[level - 1]?.option.label === 'string' ? branches[level - 1].option.label as string : undefined"
-        :style="panel.style" @pointerenter="cancelHover" @scroll="branches = branches.slice(0, level)">
+        class="s-cascade-menu" :class="level === 0 ? rootClass : undefined" role="menu" :aria-label="panelLabel(level)"
+        :style="panel.style" @pointerenter="cancelHover" @scroll="panelScroll(level)">
         <template v-for="(option, index) in visible(panel.options)" :key="index">
           <div v-if="option.divider" class="s-cascade-divider" role="separator" />
           <button v-else type="button" class="s-cascade-item"
