@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.s-float-window { position: fixed; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--sui-border); border-radius: 10px; background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); color: var(--sui-fg); }
+.s-float-window { position: fixed; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: contain; border: 1px solid var(--sui-border); border-radius: 10px; background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); color: var(--sui-fg); }
 .s-float-window.inactive { border-color: transparent; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18); }
 .s-float-head { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; height: var(--sui-float-header, 40px); padding: 0 12px; border-bottom: 1px solid var(--sui-border); }
 .s-float-head.draggable { cursor: grab; touch-action: none; user-select: none; }
@@ -192,6 +192,6 @@ onBeforeUnmount(() => {
 .s-float-head h2 { min-width: 0; margin: 0; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .s-float-window.inactive .s-float-head h2 { color: var(--sui-fg-muted); }
 .s-float-head .s-icon-close { flex: 0 0 auto; }
-.s-float-body { flex: 1 1 0; min-height: 0; padding: 12px; overflow: auto; }
+.s-float-body { flex: 1 1 0; min-height: 0; padding: 12px; overflow: auto; overscroll-behavior: contain; }
 .s-float-resizer { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; }
 </style>

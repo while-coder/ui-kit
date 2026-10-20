@@ -262,9 +262,9 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.s-modal-overlay { position: fixed; inset: 0; z-index: var(--sui-z-modal); display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--sui-mask); }
+.s-modal-overlay { position: fixed; inset: 0; z-index: var(--sui-z-modal); display: flex; align-items: center; justify-content: center; padding: 16px; overflow: hidden; overscroll-behavior: contain; background: var(--sui-mask); }
 .s-modal-overlay.nested { z-index: var(--sui-z-modal-nest); }
-.s-modal-box { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--sui-border); border-radius: 10px; background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); color: var(--sui-fg); }
+.s-modal-box { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: contain; border: 1px solid var(--sui-border); border-radius: 10px; background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); color: var(--sui-fg); }
 .s-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--sui-border); }
 .s-modal-header.draggable { cursor: grab; touch-action: none; user-select: none; }
 .s-modal-box.dragging .s-modal-header { cursor: grabbing; }

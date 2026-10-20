@@ -38,7 +38,7 @@
     <!--抽屉 Teleport 到 body：fixed 定位不依赖祖先没有 transform，z 序也独立于工作区内部层级-->
     <Teleport to="body">
       <Transition name="dock-drawer">
-        <div v-if="open" class="dock-drawer-mask" @click="open = false" @wheel.prevent>
+        <div v-if="open" class="dock-drawer-mask" @click="open = false" @wheel.self.prevent @touchmove.self.prevent>
           <nav ref="drawerEl" class="dock-drawer" role="dialog" aria-modal="true" aria-label="面板菜单" @click.stop @touchmove.stop>
             <div
               v-for="item in items"
@@ -193,6 +193,8 @@ export default defineComponent({
   position: fixed;
   inset: 0;
   z-index: 900;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: rgb(0 0 0 / 40%);
 }
 .dock-drawer {
