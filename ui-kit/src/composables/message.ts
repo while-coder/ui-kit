@@ -13,12 +13,12 @@ const toastItems = reactive<ToastItem[]>([])
 const confirmState = reactive<ConfirmState>({ visible: false, title: "", content: "" })
 let toastId = 0
 
-// 全局飘字：fire-and-forget，3.5s 自动消失
+// 全局飘字：fire-and-forget，默认 3.5s 自动消失，可指定停留毫秒数
 export const toast = {
-  show(type: ToastType, text: string | VNode) {
+  show(type: ToastType, text: string | VNode, duration = 3500) {
     const item = { id: ++toastId, type, text: typeof text === "string" ? text : markRaw(text) }
     toastItems.push(item)
-    window.setTimeout(() => { const index = toastItems.findIndex(value => value.id === item.id); if (index >= 0) toastItems.splice(index, 1) }, 3500)
+    window.setTimeout(() => { const index = toastItems.findIndex(value => value.id === item.id); if (index >= 0) toastItems.splice(index, 1) }, duration)
   }
 }
 

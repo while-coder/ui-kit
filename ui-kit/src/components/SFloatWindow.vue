@@ -17,19 +17,23 @@ export function useFloatWindowStack() {
 import { computed, onBeforeUnmount, onMounted } from "vue"
 import { openModalCount } from "./SModal.vue"
 
+type ResizeEdge = "left" | "right" | "bottom" | "corner"
+
 defineOptions({ name: "SFloatWindow" })
 const props = withDefaults(defineProps<{
   title?: string
   closable?: boolean
   /**焦点覆盖（不传则用全局栈的 activeId）*/
   active?: boolean
-  /**右下角缩放手柄，默认开启*/
+  /**缩放总开关，默认开启*/
   resizable?: boolean
+  /**允许缩放的边，默认仅右下角；空数组禁用所有手柄*/
+  resizeEdges?: ResizeEdge[]
   /**标题栏拖动，默认开启*/
   draggable?: boolean
   /**Esc 关闭，默认关闭；仅在自己持有焦点且没有模态框打开时响应（避免和 SModal 的 Esc 消费冲突）*/
   closeOnEsc?: boolean
-}>(), { closable: true, resizable: true, draggable: true, closeOnEsc: false })
+}>(), { closable: true, resizable: true, resizeEdges: () => ["corner"], draggable: true, closeOnEsc: false })
 const emit = defineEmits<{ close: []; focus: [] }>()
 
 const x = defineModel("x", { type: Number, default: 80 })
@@ -93,21 +97,33 @@ function finishDrag(event?: PointerEvent) {
   drag = null
 }
 
-// ↓ 右下角缩放手柄（同 dock 的 startFloatResize）
+// ↓ 单边和右下角缩放，共用尺寸限制和 pointer capture
 
-let resize: { pointerId: number; startX: number; startY: number; baseW: number; baseH: number } | null = null
+let resize: { edge: ResizeEdge; pointerId: number; startX: number; startY: number; baseX: number; baseW: number; baseH: number } | null = null
 
-function startResize(event: PointerEvent) {
-  if (!props.resizable || event.button !== 0) return
+function startResize(event: PointerEvent, edge: ResizeEdge) {
+  if (!props.resizable || !props.resizeEdges.includes(edge) || event.button !== 0) return
   event.preventDefault()
-  resize = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, baseW: width.value, baseH: height.value }
+  resize = { edge, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, baseX: x.value, baseW: width.value, baseH: height.value }
   ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
 }
 
 function moveResize(event: PointerEvent) {
   if (!resize || event.pointerId !== resize.pointerId) return
-  width.value = Math.min(Math.max(resize.baseW + event.clientX - resize.startX, MIN_WIDTH), window.innerWidth - x.value)
-  height.value = Math.min(Math.max(resize.baseH + event.clientY - resize.startY, MIN_HEIGHT), window.innerHeight - y.value)
+  if (!props.resizable || !props.resizeEdges.includes(resize.edge)) { resize = null; return }
+  const dx = event.clientX - resize.startX
+  if (resize.edge === "left") {
+    // 左边缩放保持右边界不动。
+    const right = resize.baseX + resize.baseW
+    const nextX = Math.min(Math.max(0, resize.baseX + dx), right - MIN_WIDTH)
+    width.value = right - nextX
+    x.value = nextX
+  } else if (resize.edge === "right" || resize.edge === "corner") {
+    width.value = Math.max(MIN_WIDTH, Math.min(resize.baseW + dx, window.innerWidth - x.value))
+  }
+  if (resize.edge === "bottom" || resize.edge === "corner") {
+    height.value = Math.max(MIN_HEIGHT, Math.min(resize.baseH + event.clientY - resize.startY, window.innerHeight - y.value))
+  }
 }
 
 function finishResize(event?: PointerEvent) {
@@ -178,7 +194,10 @@ onBeforeUnmount(() => {
         <button v-if="closable" type="button" class="s-icon-close" aria-label="关闭" @click="emit('close')">×</button>
       </header>
       <div class="s-float-body"><slot /></div>
-      <div v-if="resizable" class="s-float-resizer" @pointerdown="startResize" />
+      <template v-if="resizable">
+        <div v-for="edge in resizeEdges" :key="edge" class="s-float-resizer" :class="`s-float-resizer-${edge}`"
+          aria-hidden="true" @pointerdown="startResize($event, edge)" @lostpointercapture="finishResize" />
+      </template>
     </section>
   </Teleport>
 </template>
@@ -193,5 +212,10 @@ onBeforeUnmount(() => {
 .s-float-window.inactive .s-float-head h2 { color: var(--sui-fg-muted); }
 .s-float-head .s-icon-close { flex: 0 0 auto; }
 .s-float-body { flex: 1 1 0; min-height: 0; padding: 12px; overflow: auto; overscroll-behavior: contain; }
-.s-float-resizer { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; }
+.s-float-resizer { position: absolute; z-index: 1; touch-action: none; user-select: none; }
+.s-float-resizer-left, .s-float-resizer-right { top: var(--sui-float-header, 40px); bottom: 16px; width: 6px; cursor: ew-resize; }
+.s-float-resizer-left { left: 0; }
+.s-float-resizer-right { right: 0; }
+.s-float-resizer-bottom { left: 6px; right: 16px; bottom: 0; height: 6px; cursor: ns-resize; }
+.s-float-resizer-corner { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; }
 </style>
