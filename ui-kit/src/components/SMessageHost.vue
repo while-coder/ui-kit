@@ -22,7 +22,10 @@ const accept = async () => { const callback = confirmState.onOk; settle(true); a
   <Teleport to="body">
     <div class="s-toast-stack" aria-live="polite">
       <div v-for="item in toastItems" :key="item.id" :class="['s-toast', `type-${item.type}`]"
-        :role="item.type === 'error' ? 'alert' : 'status'">{{ item.text }}</div>
+        :role="item.type === 'error' ? 'alert' : 'status'">
+        <template v-if="typeof item.text === 'string'">{{ item.text }}</template>
+        <component :is="() => item.text" v-else />
+      </div>
     </div>
   </Teleport>
   <div class="s-progress-stack">
@@ -45,7 +48,7 @@ const accept = async () => { const callback = confirmState.onOk; settle(true); a
 
 <style scoped>
 .s-toast-stack { position: fixed; top: 16px; left: 50%; z-index: var(--sui-z-toast); display: flex; max-width: calc(100vw - 32px); flex-direction: column; align-items: center; gap: 8px; transform: translateX(-50%); pointer-events: none; }
-.s-toast { box-sizing: border-box; width: fit-content; min-width: min(220px, calc(100vw - 32px)); max-width: min(520px, calc(100vw - 32px)); padding: 9px 12px; overflow-wrap: anywhere; border: 1px solid var(--sui-border); border-radius: var(--sui-radius-md); background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); color: var(--sui-fg); line-height: 1.5; white-space: pre-wrap; }
+.s-toast { box-sizing: border-box; width: fit-content; min-width: min(220px, calc(100vw - 32px)); max-width: min(520px, calc(100vw - 32px)); padding: 9px 12px; overflow-wrap: anywhere; border: 1px solid var(--sui-border); border-radius: var(--sui-radius-md); background: var(--sui-bg); box-shadow: var(--sui-shadow-lg); color: var(--sui-fg); line-height: 1.5; white-space: pre-wrap; pointer-events: auto; }
 /* 状态此前只靠左侧色条区分（WCAG 1.4.1）；补图标作视觉冗余（形状+色相），读屏语义由 role=alert/status 承担 */
 .s-toast.type-success { border-left: 3px solid var(--sui-success); }
 .s-toast.type-success::before { content: "✓ "; color: var(--sui-success); font-weight: 700; }
