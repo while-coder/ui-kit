@@ -38,6 +38,11 @@ const isText = computed(() => props.text || props.type === "text")
 .s-button.type-primary:hover:not(:disabled) { background: var(--sui-primary-hover); }
 .s-button.type-error { border-color: var(--sui-error); background: var(--sui-error); color: #fff; }
 .s-button.text { min-height: 24px; padding: 0 4px; border-color: transparent; background: transparent; color: var(--sui-primary); }
+/* tertiary 只去掉底色，色相（文字/边框）仍按 type 保留；否则 type 的前景白字会与页面底色同色 */
 .s-button.tertiary { background: transparent; }
+.s-button.type-primary.tertiary { color: var(--sui-primary); }
+.s-button.type-primary.tertiary:hover:not(:disabled) { background: color-mix(in srgb, var(--sui-primary) 10%, transparent); }
+.s-button.type-error.tertiary { color: var(--sui-error); }
+.s-button.type-error.tertiary:hover:not(:disabled) { background: color-mix(in srgb, var(--sui-error) 10%, transparent); }
 .s-button.block { width: 100%; }
 </style>

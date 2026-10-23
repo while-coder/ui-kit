@@ -5,6 +5,7 @@ import * as components from "./components"
 export type { SelectOption } from "./components/SSelect.vue"
 export type { TreeOption } from "./components/STree.vue"
 export type { DataTableColumn } from "./components/SDataTable.vue"
+export type { BreadcrumbItem } from "./components/SBreadcrumb.vue"
 export type { EntityTableColumn } from "./components/SEntityTable.types"
 export { toast, confirm, loading } from "./composables/message"
 export type { LoadingHandle, ConfirmOptions } from "./composables/message"
@@ -45,6 +46,7 @@ declare module "vue" {
   SCollapse: typeof components.SCollapse
   SCollapseItem: typeof components.SCollapseItem
   SDataTable: typeof components.SDataTable
+  SBreadcrumb: typeof components.SBreadcrumb
   SDropdown: typeof components.SDropdown
   SFloatWindow: typeof components.SFloatWindow
   SEllipsis: typeof components.SEllipsis
