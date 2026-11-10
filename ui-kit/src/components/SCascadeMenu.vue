@@ -151,6 +151,8 @@ function outside(event: PointerEvent) {
 }
 function viewportChange(event: Event) {
   if (event.target instanceof Node && contains(event.target)) return
+  //只有触发器所在容器的滚动会移动锚点，其他面板滚动不应关闭菜单。
+  if (event.type === "scroll" && event.target instanceof Node && !event.target.contains(opener)) return
   close()
 }
 function stopListening() {
